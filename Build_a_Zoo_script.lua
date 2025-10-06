@@ -12,7 +12,7 @@ local CONFIG = {
     LOADING_SUBTITLE = "Loading",
     
     -- Timing Constants
-    AUTO_COLLECT_DELAY = 2.5,
+    AUTO__DELAY = 2.5,
     BUY_DELAY = 0.15,
     LOOP_DELAY = 0.20,
     FOOD_FOCUS_DELAY = 0.35,
@@ -597,47 +597,111 @@ function MainModule.initialize(tab)
     MainModule.initializeRecycle(tab)
 end
 
+--===============================
+-- Replace original MainModule.initializeAutoCollect with this
+--===============================
 function MainModule.initializeAutoCollect(tab)
-    UI.createSection(tab, "Money")
-    
-    local function stopLoop()
-        State.autoCollect.on = false
-        State.autoCollect.thread = Utils.stopThread(State.autoCollect.thread)
+    UI.createSection(tab, "Money (Auto Collect)")
+
+    local autoClaimEnabled = false
+    local autoClaimThread = nil
+    local autoClaimDelay = 0.1 -- เวลาหน่วงระหว่างการเก็บต่อ 1 pet
+
+    -- ฟังก์ชันดึงชื่อสัตว์เลี้ยงทั้งหมดของผู้เล่น
+    local function getOwnedPetNames()
+        local names = {}
+        local pg = LocalPlayer and LocalPlayer:FindFirstChild("PlayerGui")
+        local data = pg and pg:FindFirstChild("Data")
+        local pets = data and data:FindFirstChild("Pets")
+        if pets then
+            for _, child in ipairs(pets:GetChildren()) do
+                local n
+                if child:IsA("ValueBase") then
+                    n = tostring(child.Value)
+                else
+                    n = tostring(child.Name)
+                end
+                if n and n ~= "" then
+                    table.insert(names, n)
+                end
+            end
+        end
+        return names
     end
-    
-    local function runLoop()
-        while State.autoCollect.on do
-            pcall(function()
-                local petsFolder = Services.Workspace:FindFirstChild("Pets")
-                if not petsFolder then return end
-                
-                for _, item in ipairs(petsFolder:GetChildren()) do
-                    local rp = item:FindFirstChild("RootPart")
-                    if not rp then continue end
-                    
-                    local re = rp:FindFirstChild("RE") or rp:FindFirstChildWhichIsA("RemoteEvent")
-                    if re and re.FireServer then
-                        pcall(function() re:FireServer("Claim") end)
-                        task.wait(0.05)
-                    end
+
+    -- ยิง RemoteEvent เพื่อเก็บเงินจาก pet แต่ละตัว
+    local function claimMoneyForPet(petName)
+        if not petName or petName == "" then return false end
+        local petsFolder = Services.Workspace:FindFirstChild("Pets")
+        if not petsFolder then return false end
+        local petModel = petsFolder:FindFirstChild(petName)
+        if not petModel then return false end
+        local root = petModel:FindFirstChild("RootPart")
+        if not root then return false end
+        local re = root:FindFirstChild("RE") or root:FindFirstChildWhichIsA("RemoteEvent")
+        if not re or not re.FireServer then return false end
+
+        local ok, err = pcall(function()
+            re:FireServer("Claim")
+        end)
+        if not ok then
+            warn("[Xenitz] Claim failed for pet " .. tostring(petName) .. ": " .. tostring(err))
+        end
+        return ok
+    end
+
+    -- ลูปเก็บเงินอัตโนมัติ
+    local function runAutoClaim()
+        while autoClaimEnabled do
+            local ok, err = pcall(function()
+                local names = getOwnedPetNames()
+                if #names == 0 then
+                    task.wait(0.8)
+                    return
+                end
+                for _, n in ipairs(names) do
+                    claimMoneyForPet(n)
+                    task.wait(autoClaimDelay)
                 end
             end)
-            task.wait(CONFIG.AUTO_COLLECT_DELAY)
+            if not ok then
+                warn("[Xenitz] Auto Claim error: " .. tostring(err))
+                task.wait(1)
+            end
         end
     end
-    
+
+    -- Toggle เปิด/ปิดระบบ Auto Collect
     UI.createToggle(tab, {
-        Name = "Auto Collect",
+        Name = "💰 Auto Collect Money",
         CurrentValue = false,
-        Default = false,
-        Flag = "_AutoCollect_Live",
+        Flag = "Xenitz_AutoCollect",
         Callback = function(state)
+            autoClaimEnabled = state
+
             if state then
-                stopLoop()
-                State.autoCollect.on = true
-                State.autoCollect.thread = task.spawn(runLoop)
+                if not autoClaimThread then
+                    autoClaimThread = task.spawn(function()
+                        runAutoClaim()
+                        autoClaimThread = nil
+                    end)
+                end
+                RayfieldLibRef:Notify({
+                    Title = "💰 Auto Collect",
+                    Content = "Started collecting money! 🎉",
+                    Duration = 3
+                })
             else
-                stopLoop()
+                autoClaimEnabled = false
+                if autoClaimThread then
+                    pcall(task.cancel, autoClaimThread)
+                    autoClaimThread = nil
+                end
+                RayfieldLibRef:Notify({
+                    Title = "💰 Auto Collect",
+                    Content = "Stopped collecting.",
+                    Duration = 3
+                })
             end
         end
     })
