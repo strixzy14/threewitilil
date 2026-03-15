@@ -15,9 +15,7 @@ pcall(function()
         or v:IsA("Smoke")
         or v:IsA("Fire")
         or v:IsA("Sparkles") then
-
             v:Destroy()
-
         end
 
         if v:IsA("Decal") or v:IsA("Texture") then
@@ -69,6 +67,8 @@ local WEAPONS = {
     "Strongest in History"
 }
 
+local weaponIndex = 1
+
 -------------------------------------------------
 -- FAST TELEPORT
 -------------------------------------------------
@@ -99,44 +99,25 @@ local function portal(name)
 end
 
 -------------------------------------------------
--- AUTO BUSO
--------------------------------------------------
-
-local busoEnabled = false
-
-local function enableBuso()
-
-    if busoEnabled then return end
-
-    pcall(function()
-        HakiRemote:FireServer("Toggle")
-    end)
-
-    busoEnabled = true
-
-end
-
--------------------------------------------------
--- AUTO OBS
+-- AUTO HAKI
 -------------------------------------------------
 
 task.spawn(function()
-
     while task.wait(6) do
         pcall(function()
+            HakiRemote:FireServer("Toggle")
             ObservationRemote:FireServer("Toggle")
         end)
     end
-
 end)
 
 -------------------------------------------------
--- AUTO EQUIP MULTI WEAPON
+-- WEAPON SWITCH SYSTEM
 -------------------------------------------------
 
 task.spawn(function()
 
-    while task.wait(0.6) do
+    while task.wait(2) do
 
         local char = player.Character
         local backpack = player:FindFirstChild("Backpack")
@@ -150,26 +131,30 @@ task.spawn(function()
             continue
         end
 
-        for _,weaponName in ipairs(WEAPONS) do
+        local weaponName = WEAPONS[weaponIndex]
 
-            local weapon =
-                char:FindFirstChild(weaponName) or
-                backpack:FindFirstChild(weaponName)
+        local weapon =
+            char:FindFirstChild(weaponName) or
+            backpack:FindFirstChild(weaponName)
 
-            if weapon then
+        if weapon then
 
-                if weapon.Parent ~= char then
-                    hum:EquipTool(weapon)
-                end
-
-            else
-
-                pcall(function()
-                    EquipRemote:FireServer("Equip", weaponName)
-                end)
-
+            if weapon.Parent ~= char then
+                hum:EquipTool(weapon)
             end
 
+        else
+
+            pcall(function()
+                EquipRemote:FireServer("Equip", weaponName)
+            end)
+
+        end
+
+        weaponIndex += 1
+
+        if weaponIndex > #WEAPONS then
+            weaponIndex = 1
         end
 
     end
@@ -177,7 +162,7 @@ task.spawn(function()
 end)
 
 -------------------------------------------------
--- AUTO SKILL (X)
+-- AUTO SKILLS
 -------------------------------------------------
 
 task.spawn(function()
@@ -187,18 +172,6 @@ task.spawn(function()
         VirtualInputManager:SendKeyEvent(true,"X",false,game)
         task.wait()
         VirtualInputManager:SendKeyEvent(false,"X",false,game)
-
-    end
-
-end)
-
--------------------------------------------------
--- AUTO SKILL (V)
--------------------------------------------------
-
-task.spawn(function()
-
-    while task.wait(0.25) do
 
         VirtualInputManager:SendKeyEvent(true,"V",false,game)
         task.wait()
