@@ -834,7 +834,7 @@ task.spawn(function()
                     RS.CombatSystem.Remotes.RequestHit:FireServer()
                 end)
 
-                task.wait(0.05)
+                task.wait(0.02)
 
             until hum.Health <= 0 or not QuestUI.Quest.Visible or QuestUI.Quest.Quest.Holder.Content.QuestInfo.QuestTitle.QuestTitle.Text ~= questInfo.questTitle
             
