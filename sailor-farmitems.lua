@@ -173,10 +173,6 @@ task.spawn(function()
         task.wait()
         VirtualInputManager:SendKeyEvent(false,"X",false,game)
 
-        VirtualInputManager:SendKeyEvent(true,"V",false,game)
-        task.wait()
-        VirtualInputManager:SendKeyEvent(false,"V",false,game)
-
     end
 
 end)
