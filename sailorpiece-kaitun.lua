@@ -100,6 +100,7 @@ _G.StatResetDone = false
 _G.CurrentIslandSpawn = nil 
 _G.AUTOFUNCTION = true -- ค่าเริ่มต้นคือเปิดฟาร์ม
 _G.SkillTick = 0
+_G.AcceptedHakiQuest = false -- ป้องกันการสแปมรับเควส Haki ซ้ำ
 
 -- [[ 🎨 UI System ]] --
 local function CreateUI()
@@ -416,6 +417,25 @@ local function checkOwnerDarkBlade()
     return false
 end
 
+-- [ ฟังก์ชันเช็คว่ามีฮาคิเกราะ (Buso Haki) หรือยัง ]
+local function hasBusoHaki()
+    local char = LocalPlayer.Character
+    if not char then return false end
+    for _, v in pairs(char:GetChildren()) do
+        local name = string.lower(v.Name)
+        if not v:IsA("BasePart") and (string.find(name, "haki") or string.find(name, "buso")) then
+            return true
+        end
+    end
+    
+    local rightArm = char:FindFirstChild("Right Arm") or char:FindFirstChild("RightHand")
+    local leftArm = char:FindFirstChild("Left Arm") or char:FindFirstChild("LeftHand")
+    if rightArm and (rightArm.Material == Enum.Material.Neon or rightArm.Color == Color3.new(0, 0, 0)) then return true end
+    if leftArm and (leftArm.Material == Enum.Material.Neon or leftArm.Color == Color3.new(0, 0, 0)) then return true end
+    
+    return false
+end
+
 local function autoAllocate(modeStat)
     local StatPoints = LocalPlayer.Data:FindFirstChild("StatPoints")
     if not StatPoints or StatPoints.Value <= 0 then return end
@@ -562,6 +582,7 @@ end
 -- [[ ⚙️ Main Logic ]] --
 task.spawn(BoostFPS)
 
+-- [ 💥 รันเควสฮาคิ 1 ครั้งเสมอตอนรันสคริปต์ครั้งแรก ]
 task.spawn(function()
     pcall(function()
         local RS = game:GetService("ReplicatedStorage")
@@ -611,13 +632,23 @@ task.spawn(function()
         if char:GetAttribute("HakiActivated") ~= true then
             pcall(function()
                 UpdateStatus("✨ กำลังเปิด Haki...", Color3.fromRGB(200, 200, 255))
-                RS:WaitForChild("RemoteEvents"):WaitForChild("SettingsToggle"):FireServer("AutoSkillZ", true)
-                RS:WaitForChild("RemoteEvents"):WaitForChild("SettingsToggle"):FireServer("AutoSkillX", true) 
                 RS:WaitForChild("RemoteEvents"):WaitForChild("HakiRemote"):FireServer("Toggle")
                 char:SetAttribute("HakiActivated", true)
             end)
         end
-
+        
+        -- ==========================================
+        -- [ 📜 ระบบเช็คเวล >= 3000 เพื่อรันเควส Haki อีกครั้ง ]
+        -- ==========================================
+        if currentLevel >= 3000 and not _G.AcceptedHakiQuest then
+            pcall(function()
+                RS:WaitForChild("RemoteEvents"):WaitForChild("QuestAccept"):FireServer("HakiQuestNPC")
+            end)
+            _G.AcceptedHakiQuest = true
+            UpdateStatus("📜 ส่งรีเควสรับเควส Haki (เวล 3000+) เรียบร้อยแล้ว!", Color3.fromRGB(200, 150, 255))
+            task.wait(1)
+        end
+        -- ==========================================
 
         local questInfo = getInfoQuest()
         if not questInfo then 
@@ -631,18 +662,31 @@ task.spawn(function()
         local currentQuestTitle = isQuestVisible and QuestUI.Quest.Quest.Holder.Content.QuestInfo.QuestTitle.QuestTitle.Text or ""
 
         if not isQuestVisible then
-            UpdateStatus("🚀 ไปรับเควส: " .. questInfo.npcName, Color3.fromRGB(150, 200, 255))
-            tweenPos(CFrame.new(questInfo.position), function()
-                RS.RemoteEvents.QuestAccept:FireServer(questInfo.npcName)
-            end)
-            task.wait(0.5)
+            -- เช็คระยะห่างระหว่างตัวละครกับจุดรับเควส
+            local dist = (hrp.Position - questInfo.position).Magnitude
+            
+            if dist > 10 then 
+                -- ถ้ายังอยู่ไกล ให้วาร์ป/บิน ไปหา NPC ก่อน
+                UpdateStatus("🚀 เดินทางไปรับเควส: " .. questInfo.npcName, Color3.fromRGB(150, 200, 255))
+                tweenPos(CFrame.new(questInfo.position))
+            else
+                -- ถ้าอยู่ใกล้ NPC แล้ว ค่อยกดยิง Remote
+                UpdateStatus("📩 กำลังรับเควส...", Color3.fromRGB(150, 200, 255))
+                pcall(function() 
+                    RS.RemoteEvents.QuestAccept:FireServer(questInfo.npcName) 
+                end)
+                -- ⏳ [สำคัญมาก] รอให้เซิร์ฟเวอร์ประมวลผลและ UI โหลด จะได้ไม่ Spam
+                task.wait(1.5) 
+            end
+            
         elseif currentQuestTitle ~= questInfo.questTitle then
             if string.find(currentQuestTitle, "Haki") then
                 pcall(function() RS.RemoteEvents.QuestAccept:FireServer(questInfo.npcName) end)
+                task.wait(1.5) -- ใส่ Delay กัน Spam ตรงนี้ด้วย
             else
                 UpdateStatus("⚠️ ยกเลิกเควสที่ไม่ตรงเงื่อนไข", Color3.fromRGB(255, 150, 150))
                 pcall(function() RS.RemoteEvents.QuestAbandon:FireServer("repeatable") end)
-                task.wait(0.5) 
+                task.wait(1.5) -- รอ UI อัปเดตหลังกดยกเลิก
             end
         else
             -- ==========================================
@@ -686,38 +730,17 @@ task.spawn(function()
                 UpdateStatus("✈️ กำลังไปหา Target...", Color3.fromRGB(200, 150, 255))
                 tweenPos(CFrame.new(questInfo.position))
             end
+            
             -- ==========================================
             -- [ ⚔️ ระบบเตรียมความพร้อม อาวุธ / รีเซ็ต Stat / อัป Stat ] 
             -- ==========================================
-            local gem = LocalPlayer.Data.Gems.Value
-            local money = LocalPlayer.Data.Money.Value
             local toolName = "Combat"
             local modes_tats = "Melee"
             local YPOS = 6
+            local gotHaki = hasBusoHaki() -- เช็คว่ามีฮาคิหรือยัง
 
-            if gem >= 150 and money >= 250000 and not checkDarkBlade("Dark Blade") then
-                UpdateStatus("💰 กำลังซื้อ Dark Blade...", Color3.fromRGB(255, 215, 0))
-                pcall(function() RS.RemoteEvents.ResetStats:FireServer() end)
-                task.wait(1)
-
-                local npcHRP = workspace:FindFirstChild("ServiceNPCs") and workspace.ServiceNPCs:FindFirstChild("DarkBladeNPC") and workspace.ServiceNPCs.DarkBladeNPC:FindFirstChild("HumanoidRootPart")
-                if npcHRP then
-                    -- ใช้ SmartTP วาร์ปไปซื้อดาบดำได้เลยถ้าระยะทางไกล
-                    tweenPos(npcHRP.CFrame * CFrame.new(0, 0, 3))
-                    task.wait(1)
-                    local prompt = npcHRP:FindFirstChild("DarkBladeShopPrompt")
-                    if prompt then
-                        prompt.MaxActivationDistance = math.huge
-                        fireproximityprompt(prompt)
-                        task.wait(1)
-                        pcall(function() RS.RemoteEvents.ResetStats:FireServer() end)
-                        task.wait(2)
-                    end
-                end
-                continue
-            end
-
-            if checkDarkBlade("Dark Blade") then
+            -- เงื่อนไข: ถ้ามีดาบดำ และมีฮาคิเกราะ ถึงจะสลับไปใช้ดาบ
+            if checkDarkBlade("Dark Blade") and gotHaki then
                 if not checkOwnerDarkBlade() then
                     UpdateStatus("🗡️ กำลังสวมใส่ Dark Blade...", Color3.fromRGB(100, 100, 255))
                     pcall(function() RS.Remotes.EquipWeapon:FireServer("Equip", "Dark Blade") end)
@@ -735,6 +758,7 @@ task.spawn(function()
                     _G.StatResetDone_Melee = false 
                 end
             else
+                -- ถ้ายังไม่มีฮาคิ หรือ ยังไม่มีดาบดำ จะบังคับใช้ Combat
                 toolName = "Combat"
                 modes_tats = "Melee"
                 YPOS = 6
@@ -832,6 +856,21 @@ task.spawn(function()
                 pcall(function()
                     if tool then tool:Activate() end
                     RS.CombatSystem.Remotes.RequestHit:FireServer()
+
+                    -- ==========================================
+                    -- [ 💥 Auto Skill Z & X ]
+                    -- ==========================================
+                    if tick() - _G.SkillTick >= 1.5 then -- หน่วงเวลาใช้สกิล
+                        local AbilitySystem = RS:FindFirstChild("AbilitySystem")
+                        local ReqAbility = AbilitySystem and AbilitySystem:FindFirstChild("Remotes") and AbilitySystem.Remotes:FindFirstChild("RequestAbility")
+                        
+                        if ReqAbility then
+                            ReqAbility:FireServer(1) -- ยิงสกิล Z
+                            ReqAbility:FireServer(2) -- ยิงสกิล X
+                        end
+                        _G.SkillTick = tick() -- รีเซ็ตคูลดาวน์
+                    end
+                    -- ==========================================
                 end)
 
                 task.wait(0.02)
