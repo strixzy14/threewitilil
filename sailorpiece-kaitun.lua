@@ -618,7 +618,6 @@ task.spawn(function()
             end)
         end
 
-        -- [ ❌ ลบระบบ GetTargetIsland ออก เพราะ SmartTP จัดการให้แล้ว ] --
 
         local questInfo = getInfoQuest()
         if not questInfo then 
@@ -646,6 +645,47 @@ task.spawn(function()
                 task.wait(0.5) 
             end
         else
+            -- ==========================================
+            -- [ 💰 ระบบ Auto Buy Dark Blade ]
+            -- ==========================================
+            local gem = LocalPlayer.Data.Gems.Value
+            local money = LocalPlayer.Data.Money.Value
+
+            if gem >= 150 and money >= 250000 and not _G.HasDarkBlade then
+                UpdateStatus("💰 กำลังซื้อ Dark Blade...", Color3.fromRGB(255, 215, 0))
+                
+                local npcHRP = workspace:FindFirstChild("ServiceNPCs") and workspace.ServiceNPCs:FindFirstChild("DarkBladeNPC") and workspace.ServiceNPCs.DarkBladeNPC:FindFirstChild("HumanoidRootPart")
+                
+                if not npcHRP then
+                    tweenPos(CFrame.new(-138.99, 13.23, -1089.99))
+                    task.wait(1)
+                else
+                    tweenPos(npcHRP.CFrame * CFrame.new(0, 0, 3))
+                    task.wait(1)
+                    local prompt = npcHRP:FindFirstChild("DarkBladeShopPrompt")
+                    if prompt then
+                        prompt.RequiresLineOfSight = false
+                        prompt.MaxActivationDistance = math.huge
+                        if fireproximityprompt then
+                            fireproximityprompt(prompt)
+                        else
+                            prompt:InputHoldBegin()
+                            task.wait(prompt.HoldDuration + 0.2)
+                            prompt:InputHoldEnd()
+                        end
+                        task.wait(1)
+                        pcall(function() RS.RemoteEvents.ResetStats:FireServer() end)
+                        task.wait(2)
+                    end
+                end
+                continue
+            end
+            -- ==========================================
+
+            if (hrp.Position - questInfo.position).Magnitude >= 50 and isQuestVisible then
+                UpdateStatus("✈️ กำลังไปหา Target...", Color3.fromRGB(200, 150, 255))
+                tweenPos(CFrame.new(questInfo.position))
+            end
             -- ==========================================
             -- [ ⚔️ ระบบเตรียมความพร้อม อาวุธ / รีเซ็ต Stat / อัป Stat ] 
             -- ==========================================
@@ -794,7 +834,7 @@ task.spawn(function()
                     RS.CombatSystem.Remotes.RequestHit:FireServer()
                 end)
 
-                task.wait(0.1)
+                task.wait(0.05)
 
             until hum.Health <= 0 or not QuestUI.Quest.Visible or QuestUI.Quest.Quest.Holder.Content.QuestInfo.QuestTitle.QuestTitle.Text ~= questInfo.questTitle
             
