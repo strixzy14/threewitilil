@@ -582,12 +582,38 @@ end
 -- [[ ⚙️ Main Logic ]] --
 task.spawn(BoostFPS)
 
--- [ 💥 รันเควสฮาคิ 1 ครั้งเสมอตอนรันสคริปต์ครั้งแรก ]
+-- [ 💥 รันเควสฮาคิ 1 ครั้งเสมอตอนรันสคริปต์ครั้งแรก (แบบวาร์ปไปหา NPC ก่อน) ]
 task.spawn(function()
-    pcall(function()
-        local args = { "HakiQuestNPC" }
-        game:GetService("ReplicatedStorage"):WaitForChild("RemoteEvents"):WaitForChild("QuestAccept"):FireServer(unpack(args))
-    end)
+    -- 1. รอให้ตัวละครโหลดเสร็จสมบูรณ์ก่อน
+    local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+    local hrp = char:WaitForChild("HumanoidRootPart", 10)
+    
+    if hrp then
+        UpdateStatus("🚀 กำลังเดินทางไปรับเควส Haki...", Color3.fromRGB(150, 200, 255))
+        
+        -- 2. กำหนดพิกัด CFrame ของ NPC ฮาคิ
+        local targetCFrame = CFrame.new(-493.4667, 23.6579, -1255.6840)
+        
+        -- 3. เรียกใช้ฟังก์ชัน tweenPos เพื่อพุ่งไปหาเป้าหมาย (ฟังก์ชันนี้จะรอจนกว่าจะถึงที่หมาย)
+        tweenPos(targetCFrame)
+        
+        -- รอแปบนึงให้เซิร์ฟเวอร์อัปเดตตำแหน่งตัวละครเราว่ามายืนตรงนี้แล้วจริงๆ
+        task.wait(1) 
+        
+        -- 4. ส่งคำสั่ง Remote รับเควส
+        local RS = game:GetService("ReplicatedStorage")
+        local remoteEvents = RS:WaitForChild("RemoteEvents", 10) 
+        
+        if remoteEvents then
+            local questAccept = remoteEvents:WaitForChild("QuestAccept", 5)
+            if questAccept then
+                pcall(function()
+                    questAccept:FireServer("HakiQuestNPC") 
+                    UpdateStatus("✅ รับเควส Haki สำเร็จ!", Color3.fromRGB(100, 255, 100))
+                end)
+            end
+        end
+    end
 end)
 
 task.spawn(function()
@@ -636,20 +662,6 @@ task.spawn(function()
                 char:SetAttribute("HakiActivated", true)
             end)
         end
-        
-        -- ==========================================
-        -- [ 📜 ระบบเช็คเวล >= 3000 เพื่อรันเควส Haki อีกครั้ง ]
-        -- ==========================================
-        if currentLevel >= 3000 and not _G.AcceptedHakiQuest then
-            pcall(function()
-                local args = { "HakiQuestNPC" }
-                game:GetService("ReplicatedStorage"):WaitForChild("RemoteEvents"):WaitForChild("QuestAccept"):FireServer(unpack(args))
-            end)
-            _G.AcceptedHakiQuest = true
-            UpdateStatus("📜 ส่งรีเควสรับเควส Haki (เวล 3000+) เรียบร้อยแล้ว!", Color3.fromRGB(200, 150, 255))
-            task.wait(1)
-        end
-        -- ==========================================
 
         local questInfo = getInfoQuest()
         if not questInfo then 
@@ -777,22 +789,50 @@ task.spawn(function()
             local tool = LocalPlayer.Backpack:FindFirstChild(toolName) or char:FindFirstChild(toolName)
             if tool then hum:EquipTool(tool) end
 
-            -- [ 🎯 ค้นหา Target ] --
+            -- [ 🎯 ค้นหา Target (อัปเกรดระบบล็อคเป้าแม่นยำ) ] --
             local npcType = getnpcQuest(questInfo.npcName)
             local closest = nil
+            local closestDist = math.huge
+            local bestMatchLevel = 0 -- ระดับความแม่นยำ: 2 = ชื่อตรงเป๊ะ, 1 = แค่มีคำคล้ายกัน
 
             if npcType then
                 local targetStr = tostring(npcType):lower():gsub("%s+", "")
+                -- เช็คว่าเควสนี้ให้ตีบอสหรือเปล่า
+                local isBossQuest = string.find(targetStr, "boss") ~= nil
+
                 for _, v in pairs(workspace.NPCs:GetChildren()) do
                     if v:IsA("Model") and v:FindFirstChild("HumanoidRootPart") and v:FindFirstChild("Humanoid") and v.Humanoid.Health > 0 then
                         local cleanDisplay = v.Humanoid.DisplayName:lower():gsub("%[lv%.%s*%d+%]", ""):gsub("%s+", "")
                         local cleanName = v.Name:lower():gsub("%s+", "")
                         
+                        -- 🛡️ ระบบป้องกันตีบอสมั่ว: ถ้าเควสไม่ใช่เควสบอส แต่ชื่อมอนมีคำว่า boss ให้ข้ามไปเลย
+                        if not isBossQuest and (string.find(cleanDisplay, "boss") or string.find(cleanName, "boss")) then
+                            continue
+                        end
+
+                        local matchLevel = 0
+                        -- เช็คว่าชื่อตรงเป๊ะๆ ไหม
                         if cleanDisplay == targetStr or cleanName == targetStr then
-                            closest = v
-                            break
+                            matchLevel = 2 
+                        -- ถ้าไม่เป๊ะ เช็คว่ามีคำนี้อยู่ในชื่อไหม
                         elseif string.find(cleanDisplay, targetStr, 1, true) or string.find(cleanName, targetStr, 1, true) then
-                            closest = v
+                            matchLevel = 1 
+                        end
+
+                        -- ถ้าตรงเงื่อนไขการหา ให้มาเช็คระยะทาง
+                        if matchLevel > 0 then
+                            local dist = (hrp.Position - v.HumanoidRootPart.Position).Magnitude
+                            
+                            -- ถ้าเจอตัวที่ชื่อ "ตรงเป๊ะ" (Level 2) มันจะเตะตัวที่ "ชื่อคล้าย" (Level 1) ทิ้งทันที
+                            if matchLevel > bestMatchLevel then
+                                closest = v
+                                closestDist = dist
+                                bestMatchLevel = matchLevel
+                            -- ถ้าความแม่นยำเท่ากัน ให้เลือกตัวที่อยู่ "ใกล้ที่สุด"
+                            elseif matchLevel == bestMatchLevel and dist < closestDist then
+                                closest = v
+                                closestDist = dist
+                            end
                         end
                     end
                 end
