@@ -585,8 +585,8 @@ task.spawn(BoostFPS)
 -- [ 💥 รันเควสฮาคิ 1 ครั้งเสมอตอนรันสคริปต์ครั้งแรก ]
 task.spawn(function()
     pcall(function()
-        local RS = game:GetService("ReplicatedStorage")
-        RS:WaitForChild("RemoteEvents"):WaitForChild("QuestAccept"):FireServer("HakiQuestNPC")
+        local args = { "HakiQuestNPC" }
+        game:GetService("ReplicatedStorage"):WaitForChild("RemoteEvents"):WaitForChild("QuestAccept"):FireServer(unpack(args))
     end)
 end)
 
@@ -642,7 +642,8 @@ task.spawn(function()
         -- ==========================================
         if currentLevel >= 3000 and not _G.AcceptedHakiQuest then
             pcall(function()
-                RS:WaitForChild("RemoteEvents"):WaitForChild("QuestAccept"):FireServer("HakiQuestNPC")
+                local args = { "HakiQuestNPC" }
+                game:GetService("ReplicatedStorage"):WaitForChild("RemoteEvents"):WaitForChild("QuestAccept"):FireServer(unpack(args))
             end)
             _G.AcceptedHakiQuest = true
             UpdateStatus("📜 ส่งรีเควสรับเควส Haki (เวล 3000+) เรียบร้อยแล้ว!", Color3.fromRGB(200, 150, 255))
