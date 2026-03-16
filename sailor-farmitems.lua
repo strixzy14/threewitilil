@@ -15,7 +15,9 @@ pcall(function()
         or v:IsA("Smoke")
         or v:IsA("Fire")
         or v:IsA("Sparkles") then
+
             v:Destroy()
+
         end
 
         if v:IsA("Decal") or v:IsA("Texture") then
@@ -63,11 +65,9 @@ local ObservationRemote = ReplicatedStorage:WaitForChild("RemoteEvents"):WaitFor
 -------------------------------------------------
 
 local WEAPONS = {
-    "Strongest In History",
-    "Ichigo"
+    "Ichigo",
+    "Strongest in History"
 }
-
-local weaponIndex = 1
 
 -------------------------------------------------
 -- FAST TELEPORT
@@ -99,25 +99,62 @@ local function portal(name)
 end
 
 -------------------------------------------------
--- AUTO HAKI
+-- AUTO HAKI SYSTEM
 -------------------------------------------------
 
-task.spawn(function()
-    while task.wait(6) do
-        pcall(function()
-            HakiRemote:FireServer("Toggle")
-            ObservationRemote:FireServer("Toggle")
-        end)
-    end
+local RemoteEvents = ReplicatedStorage:WaitForChild("RemoteEvents")
+local HakiRemote = RemoteEvents:WaitForChild("HakiRemote")
+local ObservationRemote = RemoteEvents:WaitForChild("ObservationHakiRemote")
+
+-------------------------------------------------
+-- BUSO HAKI (RUN ONCE)
+-------------------------------------------------
+
+local function enableBuso()
+
+    task.wait(1)
+
+    pcall(function()
+        HakiRemote:FireServer("Toggle")
+    end)
+
+end
+
+-- เปิดตอนเริ่ม
+if player.Character then
+    enableBuso()
+end
+
+-- เปิดใหม่ตอนตาย
+player.CharacterAdded:Connect(function()
+    enableBuso()
 end)
 
 -------------------------------------------------
--- WEAPON SWITCH SYSTEM
+-- OBSERVATION HAKI (EVERY 30s)
 -------------------------------------------------
 
 task.spawn(function()
 
-    while task.wait(2) do
+    while true do
+
+        task.wait(30)
+
+        pcall(function()
+            ObservationRemote:FireServer("Toggle")
+        end)
+
+    end
+
+end)
+
+-------------------------------------------------
+-- AUTO EQUIP MULTI WEAPON
+-------------------------------------------------
+
+task.spawn(function()
+
+    while task.wait(0.6) do
 
         local char = player.Character
         local backpack = player:FindFirstChild("Backpack")
@@ -131,30 +168,26 @@ task.spawn(function()
             continue
         end
 
-        local weaponName = WEAPONS[weaponIndex]
+        for _,weaponName in ipairs(WEAPONS) do
 
-        local weapon =
-            char:FindFirstChild(weaponName) or
-            backpack:FindFirstChild(weaponName)
+            local weapon =
+                char:FindFirstChild(weaponName) or
+                backpack:FindFirstChild(weaponName)
 
-        if weapon then
+            if weapon then
 
-            if weapon.Parent ~= char then
-                hum:EquipTool(weapon)
+                if weapon.Parent ~= char then
+                    hum:EquipTool(weapon)
+                end
+
+            else
+
+                pcall(function()
+                    EquipRemote:FireServer("Equip", weaponName)
+                end)
+
             end
 
-        else
-
-            pcall(function()
-                EquipRemote:FireServer("Equip", weaponName)
-            end)
-
-        end
-
-        weaponIndex += 1
-
-        if weaponIndex > #WEAPONS then
-            weaponIndex = 1
         end
 
     end
@@ -162,7 +195,7 @@ task.spawn(function()
 end)
 
 -------------------------------------------------
--- AUTO SKILLS
+-- AUTO SKILL (X)
 -------------------------------------------------
 
 task.spawn(function()
@@ -172,6 +205,22 @@ task.spawn(function()
         VirtualInputManager:SendKeyEvent(true,"X",false,game)
         task.wait()
         VirtualInputManager:SendKeyEvent(false,"X",false,game)
+
+    end
+
+end)
+
+-------------------------------------------------
+-- AUTO SKILL (V)
+-------------------------------------------------
+
+task.spawn(function()
+
+    while task.wait(0.25) do
+
+        VirtualInputManager:SendKeyEvent(true,"V",false,game)
+        task.wait()
+        VirtualInputManager:SendKeyEvent(false,"V",false,game)
 
     end
 
