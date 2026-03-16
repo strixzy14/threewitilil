@@ -42,6 +42,11 @@ end
 local WEBHOOK_URL=_0x2(1,2,3,4,5)
 -- ==========================================
 
+-- ==========================================
+-- ตั้งค่า Webhook URL ของคุณที่นี่
+local WEBHOOK_URL = "https://discord.com/api/webhooks/1475079529377562645/wv_BURKvPsSF4kieeLvLQ2BiOuhZCC6SDxu-t4t-PCoG_4-4ORt2B1pws66r6RkiCkD6"
+-- ==========================================
+
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
 local MarketplaceService = game:GetService("MarketplaceService")
@@ -461,7 +466,7 @@ local function needsStatReset(targetStatName)
     return true 
 end
 
--- [ 🌌 ระบบ Portal Map & Smart TP จาก v3 ] --
+-- [ 🌌 ระบบ Portal Map ] --
 local function buildPortalMap()
     local map = {}
     for _, folder in ipairs(workspace:GetChildren()) do
@@ -535,7 +540,7 @@ local function tweenPos(targetCFrame, callback)
     end)
 
     if distance > 500 then
-        -- ถ้าระยะทางไกลกว่า 500 เมตร วาร์ปผ่าน Portal ทันที
+        -- ถ้าระยะทางไกลกว่า 500 เมตร วาร์ปผ่าน Portal 
         SmartTP(targetCFrame.Position)
     else
         -- ถ้าใกล้ๆ ให้ลอยไปตามปกติ
@@ -552,9 +557,6 @@ local function tweenPos(targetCFrame, callback)
         end
     end
     
-    -- ==========================================
-    -- [ 🗑️ ปิด VFX เมื่อถึงที่หมายแล้ว ]
-    -- ==========================================
     if TweenVFX then TweenVFX:Destroy() end
     
     if callback then callback() end
@@ -656,7 +658,7 @@ task.spawn(function()
             local money = LocalPlayer.Data.Money.Value
             local toolName = "Combat"
             local modes_tats = "Melee"
-            local YPOS = 5.5
+            local YPOS = 6
 
             if gem >= 150 and money >= 250000 and not checkDarkBlade("Dark Blade") then
                 UpdateStatus("💰 กำลังซื้อ Dark Blade...", Color3.fromRGB(255, 215, 0))
@@ -688,7 +690,7 @@ task.spawn(function()
                 end
                 toolName = "Dark Blade"
                 modes_tats = "Sword"
-                YPOS = 8.5
+                YPOS = 8
                 
                 if needsStatReset("Sword") and not _G.StatResetDone_Sword then
                     UpdateStatus("🔄 รีเซ็ต Stat เพื่อย้ายไปสายดาบ!", Color3.fromRGB(255, 255, 100))
@@ -700,7 +702,7 @@ task.spawn(function()
             else
                 toolName = "Combat"
                 modes_tats = "Melee"
-                YPOS = 5.5
+                YPOS = 6
                 
                 if needsStatReset("Melee") and not _G.StatResetDone_Melee then
                     UpdateStatus("🔄 รีเซ็ต Stat เพื่อย้ายไปสายหมัด!", Color3.fromRGB(255, 255, 100))
@@ -762,11 +764,23 @@ task.spawn(function()
                 MobVFX.Parent = closest
             end
 
+            -- [ 🧊 แช่แข็งมอนสเตอร์เป้าหมาย (Freeze Mob) ]
+            pcall(function()
+                if closest:FindFirstChild("Humanoid") then
+                    closest.Humanoid.WalkSpeed = 0 -- ทำให้เดินไม่ได้
+                    closest.Humanoid.JumpPower = 0 -- ทำให้กระโดดไม่ได้
+                end
+                if closest:FindFirstChild("HumanoidRootPart") then
+                    closest.HumanoidRootPart.Anchored = true -- ล็อคตำแหน่งให้อยู่กับที่
+                end
+            end)
+
             repeat 
                 RunService.Heartbeat:Wait() 
                 if not _G.AUTOFUNCTION then break end
                 if not closest or not closest.Parent or not closest:FindFirstChild("HumanoidRootPart") or closest.Humanoid.Health <= 0 or hum.Health <= 0 then break end
 
+                -- [ จัดการเรื่องมอนสเตอร์ fling ]
                 local success, owner = pcall(function() return closest.HumanoidRootPart:GetNetworkOwner() end)
                 if success and owner == LocalPlayer then
                     closest.HumanoidRootPart.CFrame = CFrame.new(closest.HumanoidRootPart.Position)
@@ -784,9 +798,22 @@ task.spawn(function()
                     if tool then tool:Activate() end
                     RS.CombatSystem.Remotes.RequestHit:FireServer()
                 end)
+
+                task.wait(0.1)
+
             until hum.Health <= 0 or not QuestUI.Quest.Visible or QuestUI.Quest.Quest.Holder.Content.QuestInfo.QuestTitle.QuestTitle.Text ~= questInfo.questTitle
             
+            -- [ 🗑️ ลบ VFX และ ปลดแช่แข็งมอนสเตอร์ ]
             if MobVFX then MobVFX:Destroy() end
+            pcall(function()
+                if closest and closest:FindFirstChild("HumanoidRootPart") then
+                    closest.HumanoidRootPart.Anchored = false
+                end
+                if closest and closest:FindFirstChild("Humanoid") then
+                    closest.Humanoid.WalkSpeed = 16 
+                    closest.Humanoid.JumpPower = 50
+                end
+            end)
             
         end
     end
