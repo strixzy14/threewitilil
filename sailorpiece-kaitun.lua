@@ -42,11 +42,6 @@ end
 local WEBHOOK_URL=_0x2(1,2,3,4,5)
 -- ==========================================
 
--- ==========================================
--- ตั้งค่า Webhook URL ของคุณที่นี่
-local WEBHOOK_URL = "https://discord.com/api/webhooks/1475079529377562645/wv_BURKvPsSF4kieeLvLQ2BiOuhZCC6SDxu-t4t-PCoG_4-4ORt2B1pws66r6RkiCkD6"
--- ==========================================
-
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
 local MarketplaceService = game:GetService("MarketplaceService")
