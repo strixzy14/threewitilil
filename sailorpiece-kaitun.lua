@@ -285,6 +285,12 @@ local function CreateUI()
 
     ToggleBtn.MouseButton1Click:Connect(function()
         BlackBG.Visible = not BlackBG.Visible
+        
+        -- [ 🛠️ OPTIMIZED: ปิดการเรนเดอร์ 3D ของ Roblox ทิ้ง ]
+        pcall(function()
+            RunService:Set3dRenderingEnabled(not BlackBG.Visible)
+        end)
+        
         if BlackBG.Visible then
             ToggleBtn.Text = "❌ Hide Screen"
             ToggleBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
@@ -295,46 +301,49 @@ local function CreateUI()
     end)
 
     local startTime = tick()
-    RunService.RenderStepped:Connect(function()
-        local elapsed = tick() - startTime
-        local hours = math.floor(elapsed / 3600)
-        local mins = math.floor((elapsed % 3600) / 60)
-        local secs = math.floor(elapsed % 60)
-        TimeLabel.Text = string.format("⏳ Uptime: %02d:%02d:%02d", hours, mins, secs)
+    -- [ 🛠️ OPTIMIZED: อัปเดต UI แค่วินาทีละ 1 ครั้ง แทนการรันทุกเฟรม ]
+    task.spawn(function()
+        while task.wait(1) do
+            local elapsed = tick() - startTime
+            local hours = math.floor(elapsed / 3600)
+            local mins = math.floor((elapsed % 3600) / 60)
+            local secs = math.floor(elapsed % 60)
+            TimeLabel.Text = string.format("⏳ Uptime: %02d:%02d:%02d", hours, mins, secs)
 
-        pcall(function()
-            local level = LocalPlayer.Data.Level.Value
-            local money = LocalPlayer.Data.Money.Value
-            local gems = LocalPlayer.Data.Gems.Value
-            PlayerStatsLabel.Text = string.format("⭐ Lv. %s | 💰 Money: %s | 💎 Gems: %s", level, money, gems)
+            pcall(function()
+                local level = LocalPlayer.Data.Level.Value
+                local money = LocalPlayer.Data.Money.Value
+                local gems = LocalPlayer.Data.Gems.Value
+                PlayerStatsLabel.Text = string.format("⭐ Lv. %s | 💰 Money: %s | 💎 Gems: %s", level, money, gems)
 
-            local hasBuso = false
-            local hasDB = false
-            
-            local char = LocalPlayer.Character
-            if char then
-                for _, v in pairs(char:GetChildren()) do
-                    local name = string.lower(v.Name)
-                    if not v:IsA("BasePart") then
-                        if string.find(name, "haki") or string.find(name, "buso") then hasBuso = true end
+                local hasBuso = false
+                local hasDB = false
+                
+                local char = LocalPlayer.Character
+                if char then
+                    for _, v in pairs(char:GetChildren()) do
+                        local name = string.lower(v.Name)
+                        if not v:IsA("BasePart") then
+                            if string.find(name, "haki") or string.find(name, "buso") then hasBuso = true end
+                        end
+                        if v:IsA("Tool") and string.find(name, "dark") and string.find(name, "blade") then hasDB = true end
                     end
-                    if v:IsA("Tool") and string.find(name, "dark") and string.find(name, "blade") then hasDB = true end
+                    
+                    local rightArm = char:FindFirstChild("Right Arm") or char:FindFirstChild("RightHand")
+                    local leftArm = char:FindFirstChild("Left Arm") or char:FindFirstChild("LeftHand")
+                    if rightArm and (rightArm.Material == Enum.Material.Neon or rightArm.Color == Color3.new(0, 0, 0)) then hasBuso = true end
+                    if leftArm and (leftArm.Material == Enum.Material.Neon or leftArm.Color == Color3.new(0, 0, 0)) then hasBuso = true end
                 end
                 
-                local rightArm = char:FindFirstChild("Right Arm") or char:FindFirstChild("RightHand")
-                local leftArm = char:FindFirstChild("Left Arm") or char:FindFirstChild("LeftHand")
-                if rightArm and (rightArm.Material == Enum.Material.Neon or rightArm.Color == Color3.new(0, 0, 0)) then hasBuso = true end
-                if leftArm and (leftArm.Material == Enum.Material.Neon or leftArm.Color == Color3.new(0, 0, 0)) then hasBuso = true end
-            end
-            
-            for _, v in pairs(LocalPlayer.Backpack:GetChildren()) do
-                local name = string.lower(v.Name)
-                if v:IsA("Tool") and string.find(name, "dark") and string.find(name, "blade") then hasDB = true end
-            end
-            _G.HasDarkBlade = hasDB
-            
-            HakiStatusLabel.Text = string.format("⚔️ Buso: %s | 🗡️ DB: %s", hasBuso and "✅" or "❌", hasDB and "✅" or "❌")
-        end)
+                for _, v in pairs(LocalPlayer.Backpack:GetChildren()) do
+                    local name = string.lower(v.Name)
+                    if v:IsA("Tool") and string.find(name, "dark") and string.find(name, "blade") then hasDB = true end
+                end
+                _G.HasDarkBlade = hasDB
+                
+                HakiStatusLabel.Text = string.format("⚔️ Buso: %s | 🗡️ DB: %s", hasBuso and "✅" or "❌", hasDB and "✅" or "❌")
+            end)
+        end
     end)
 
     return StatusLabel
@@ -349,26 +358,51 @@ local function UpdateStatus(text, color)
     end
 end
 
--- [[ 🚀 FPS Boost System ]] --
+-- [[ 🚀 FPS Boost System (Extreme Edition) ]] --
 local function BoostFPS()
     settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
+    settings().Network.IncomingReplicationLag = 0 -- ลด Ping จำลอง
+    
     Lighting.GlobalShadows = false
     Lighting.FogEnd = 9e9
     Lighting.Brightness = 0
     if Lighting:FindFirstChildOfClass("Sky") then Lighting:FindFirstChildOfClass("Sky"):Destroy() end
+    
     for _, v in pairs(Lighting:GetDescendants()) do
-        if v:IsA("BlurEffect") or v:IsA("SunRaysEffect") or v:IsA("ColorCorrectionEffect") or v:IsA("BloomEffect") or v:IsA("DepthOfFieldEffect") then v.Enabled = false end
+        if v:IsA("PostEffect") then v.Enabled = false end
     end
+    
+    -- ปิดฟิสิกส์ของน้ำ (ลดภาระ CPU ได้มาก)
+    pcall(function()
+        workspace.Terrain.WaterWaveSize = 0
+        workspace.Terrain.WaterWaveSpeed = 0
+        workspace.Terrain.WaterReflectance = 0
+        workspace.Terrain.WaterTransparency = 0
+    end)
+
     local function clearPart(v)
         if v:IsA("BasePart") then
             v.Material = Enum.Material.SmoothPlastic
             v.Reflectance = 0
             v.CastShadow = false
-        elseif v:IsA("Decal") or v:IsA("Texture") then v.Transparency = 1
-        elseif v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Fire") or v:IsA("Smoke") or v:IsA("Sparkles") then v.Enabled = false end
+        elseif v:IsA("Decal") or v:IsA("Texture") then 
+            v.Transparency = 1
+        elseif v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Fire") or v:IsA("Smoke") or v:IsA("Sparkles") then 
+            v.Enabled = false 
+        end
     end
+    
     for _, v in pairs(workspace:GetDescendants()) do clearPart(v) end
     workspace.DescendantAdded:Connect(clearPart)
+    
+    -- ลบเอฟเฟกต์เลือด/ดาเมจบนจอ (ถ้ามี) ช่วยลดอาการหน่วงเวลาตีมอนรัวๆ
+    pcall(function()
+        LocalPlayer.PlayerGui.DescendantAdded:Connect(function(v)
+            if v:IsA("TextLabel") and (v.Name == "DamageLabel" or v.Name == "Blood") then
+                v:Destroy()
+            end
+        end)
+    end)
 end
 
 -- [[ 🛡️ Anti-AFK ]] --
