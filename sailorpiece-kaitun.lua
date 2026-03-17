@@ -405,6 +405,37 @@ local function BoostFPS()
     end)
 end
 
+-- ==========================================
+-- [ 🎛️ สั่งปิด Settings ของเกมทั้งหมดผ่าน Remote ]
+-- ==========================================
+task.spawn(function()
+    local RS = game:GetService("ReplicatedStorage")
+    local remoteEvents = RS:WaitForChild("RemoteEvents", 10)
+    
+    if remoteEvents then
+        local settingsToggle = remoteEvents:WaitForChild("SettingsToggle", 5)
+        
+        if settingsToggle then
+            -- รายชื่อ Setting ที่ต้องการเปิดให้เป็น true (ปิดเอฟเฟค/เสียง)
+            local settingsToDisable = {
+                "MuteMusic",
+                "MuteSFX",
+                "DisableVFX",
+                "DisableScreenShake",
+                "RemoveTexture"
+            }
+            
+            for _, setting in ipairs(settingsToDisable) do
+                pcall(function()
+                    settingsToggle:FireServer(setting, true)
+                end)
+            end
+            UpdateStatus("✅ ปิด Effect และตั้งค่าลดแลคในเกมเรียบร้อย", Color3.fromRGB(100, 255, 100))
+        end
+    end
+end)
+-- ==========================================
+
 -- [[ 🛡️ Anti-AFK ]] --
 LocalPlayer.Idled:Connect(function()
     VU:CaptureController()
@@ -612,6 +643,28 @@ local function tweenPos(targetCFrame, callback)
     if noclip then noclip:Disconnect() end
 end
 
+
+-- ==========================================
+-- [ 🛡️ Anti-Player System (เตะออกเมื่อมีคนอื่น) ]
+-- ==========================================
+local function CheckPlayers()
+    -- ถ้ามีผู้เล่นในเซิร์ฟเวอร์มากกว่า 1 คน (คือมีคนอื่นนอกจากเรา)
+    if #Players:GetPlayers() > 1 then
+        UpdateStatus("⚠️ ตรวจพบผู้เล่นอื่น! กำลังเตะออกจากเซิร์ฟ...", Color3.fromRGB(255, 50, 50))
+        task.wait(0.5)
+        -- คำสั่ง Kick จะแสดงหน้าจอ Error Code 267 ทันที
+        LocalPlayer:Kick("ระบบตรวจพบผู้เล่นอื่นในเซิร์ฟเวอร์")
+    end
+end
+
+-- 1. เช็คทันทีตอนรันสคริปต์ครั้งแรก
+CheckPlayers()
+
+-- 2. ดักจับตลอดเวลา ถ้ามีคนแจมเข้ามาทีหลังให้เตะเราออกทันที
+Players.PlayerAdded:Connect(function(player)
+    CheckPlayers()
+end)
+-- ==========================================
 
 -- [[ ⚙️ Main Logic ]] --
 task.spawn(BoostFPS)
