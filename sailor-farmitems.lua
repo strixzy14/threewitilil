@@ -1,3 +1,5 @@
+if setfpscap then setfpscap(15) end
+
 
 repeat task.wait() until game:IsLoaded()
 
