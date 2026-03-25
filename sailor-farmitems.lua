@@ -65,8 +65,8 @@ local ObservationRemote = ReplicatedStorage:WaitForChild("RemoteEvents"):WaitFor
 -------------------------------------------------
 
 local WEAPONS = {
-    "Ichigo",
-    "Strongest in History"
+    "Soul Reaper",
+    "Strongest In History"
 }
 
 -------------------------------------------------
