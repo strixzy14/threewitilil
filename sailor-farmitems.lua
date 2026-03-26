@@ -63,9 +63,9 @@ task.spawn(function()
 end)
 
 -------------------------------------------------
--- GLOBAL TOGGLES
+-- GLOBAL TOGGLES (แก้ไขให้รับค่าจาก getgenv)
 -------------------------------------------------
--- ตรวจสอบว่ามีการตั้งค่ามาจากข้างนอกไหม ถ้าไม่มีให้ใช้ค่าเริ่มต้นเป็น true
+-- ตรวจสอบค่าจากภายนอก ถ้าไม่มีให้ Default เป็น true
 local _G_AutoFarm = (getgenv().AutoFarm ~= nil) and getgenv().AutoFarm or true
 local _G_WhiteScreen = (getgenv().WhiteScreen ~= nil) and getgenv().WhiteScreen or true
 
@@ -141,13 +141,17 @@ WhiteScreenBtn.ZIndex = 3
 WhiteScreenBtn.Parent = MainFrame
 Instance.new("UICorner", WhiteScreenBtn).CornerRadius = UDim.new(0, 6)
 
+-- แก้ไขตรงส่วนการตั้งค่าเริ่มต้นของ White Screen ให้เช็คเงื่อนไขก่อน:
 if _G_WhiteScreen then
     WhiteScreenBtn.BackgroundColor3 = Color3.fromRGB(40, 200, 40)
     WhiteScreenBtn.Text = "White Screen: ON"
-    pcall(function() RunService:Set3dRenderingEnabled(false) end)
+    WhiteScreenFrame.Visible = true
+    pcall(function() RunService:Set3dRenderingEnabled(false) end) -- ปิดจอเฉพาะตอนเป็น true
 else
     WhiteScreenBtn.BackgroundColor3 = Color3.fromRGB(200, 40, 40)
     WhiteScreenBtn.Text = "White Screen: OFF"
+    WhiteScreenFrame.Visible = false
+    pcall(function() RunService:Set3dRenderingEnabled(true) end)  -- เปิดจอถ้าตั้งเป็น false
 end
 
 local function MakeDraggable(gui)
