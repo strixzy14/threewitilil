@@ -65,8 +65,9 @@ end)
 -------------------------------------------------
 -- GLOBAL TOGGLES
 -------------------------------------------------
-local _G_AutoFarm = true
-local _G_WhiteScreen = false
+-- ตรวจสอบว่ามีการตั้งค่ามาจากข้างนอกไหม ถ้าไม่มีให้ใช้ค่าเริ่มต้นเป็น true
+local _G_AutoFarm = (getgenv().AutoFarm ~= nil) and getgenv().AutoFarm or true
+local _G_WhiteScreen = (getgenv().WhiteScreen ~= nil) and getgenv().WhiteScreen or true
 
 -------------------------------------------------
 -- GUI SYSTEM (รองรับ Mobile)
