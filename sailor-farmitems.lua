@@ -1,14 +1,18 @@
 repeat task.wait() until game:IsLoaded()
 
 -------------------------------------------------
--- SERVICES
+-- 1. MICRO-OPTIMIZATION (ย่อคำสั่งเพื่อลดภาระ RAM)
 -------------------------------------------------
+local tWait = task.wait
+local pcall = pcall
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local VirtualInputManager = game:GetService("VirtualInputManager")
 local RunService = game:GetService("RunService")
+local StarterGui = game:GetService("StarterGui")
 
 local player = Players.LocalPlayer
+local sendKey = VirtualInputManager.SendKeyEvent -- ดึงคำสั่งกดปุ่มมารอไว้เลย
 
 local RemoteEvents = ReplicatedStorage:WaitForChild("RemoteEvents")
 local Remotes = ReplicatedStorage:WaitForChild("Remotes")
@@ -20,47 +24,50 @@ local ObservationRemote = RemoteEvents:WaitForChild("ObservationHakiRemote")
 local SettingsToggle = RemoteEvents:WaitForChild("SettingsToggle")
 
 -------------------------------------------------
--- CLEAN OPTIMIZATION (รีดประสิทธิภาพ ลด RAM)
+-- 2. EXTREME RAM SAVER (ปิดทุกอย่างที่แอบกินแรม)
 -------------------------------------------------
--- 1. ปรับกราฟิกต่ำสุด
+-- ปิด UI พื้นฐานของ Roblox (ลด RAM จากคนแชท/คนเข้าออกเซิร์ฟ)
+pcall(function()
+    StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.All, false)
+end)
+
+-- ตัดระบบเสียงของแอปแบบถอนรากถอนโคน
+pcall(function()
+    UserSettings():GetService("UserGameSettings").MasterVolume = 0
+end)
+
+-- ปรับกราฟิกต่ำสุด
 settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
 
--- 2. ปิด Effect จากระบบเกม
+-- ปิด Effect จากระบบเกม
 task.spawn(function()
     local settingsToToggle = {
-        "DisableCutscene", 
-        "DisableVFX", 
-        "MuteSFX", 
-        "MuteMusic", 
-        "DisableScreenShake", 
-        "RemoveTexture", 
-        "RemoveShadows"
+        "DisableCutscene", "DisableVFX", "MuteSFX", 
+        "MuteMusic", "DisableScreenShake", "RemoveTexture", "RemoveShadows"
     }
     for _, settingName in ipairs(settingsToToggle) do
-        pcall(function()
-            SettingsToggle:FireServer(settingName, true)
-        end)
-        task.wait(0.1)
+        pcall(function() SettingsToggle:FireServer(settingName, true) end)
+        tWait(0.1)
     end
 end)
 
--- 3. ปิดเรนเดอร์ 3D (ประหยัดแรมขีดสุด หน้าจอค้างแต่ฟาร์มปกติ)
+-- ปิดเรนเดอร์ 3D ขีดสุด
 task.spawn(function()
-    task.wait(5)
+    tWait(5)
     pcall(function()
         RunService:Set3dRenderingEnabled(false)
     end)
 end)
 
--- 4. ระบบล้างแรมแบบเบา (ไม่กระชากเครื่อง)
+-- ล้าง Cache แบบลึก (ทำทุกๆ 3 นาทีให้เครื่องไม่กระตุก)
 task.spawn(function()
-    while task.wait(60) do
-        collectgarbage("step", 200)
+    while tWait(180) do
+        collectgarbage("collect")
     end
 end)
 
 -------------------------------------------------
--- UTILITIES & WEAPONS
+-- 3. UTILITIES & WEAPONS
 -------------------------------------------------
 local WEAPONS = {"Soul Reaper", "Strongest In History"}
 
@@ -71,7 +78,7 @@ local function fasttp(cf)
     if not hrp then return end
     for i = 1, 3 do 
         hrp.CFrame = cf
-        task.wait() 
+        tWait() 
     end
 end
 
@@ -80,61 +87,62 @@ local function portal(name)
 end
 
 -------------------------------------------------
--- AUTO HAKI & OBSERVATION
+-- 4. AUTO HAKI & OBSERVATION
 -------------------------------------------------
 local function enableBuso()
-    task.wait(1)
+    tWait(1)
     pcall(function() HakiRemote:FireServer("Toggle") end)
 end
 if player.Character then enableBuso() end
 player.CharacterAdded:Connect(enableBuso)
 
 task.spawn(function()
-    while task.wait(30) do
+    while tWait(30) do
         pcall(function() ObservationRemote:FireServer("Toggle") end)
     end
 end)
 
 -------------------------------------------------
--- AUTO EQUIP (เวลาเดิม: 0.5)
+-- 5. AUTO EQUIP (0.5 วิ - รีดคำสั่งให้เบาสุด)
 -------------------------------------------------
 task.spawn(function()
     local currentWeaponIndex = 1
-    while task.wait(0.5) do
+    while tWait(0.5) do
         local char = player.Character
-        local backpack = player:FindFirstChild("Backpack")
-        if not char or not backpack then continue end
+        if char then
+            local backpack = player:FindFirstChild("Backpack")
+            local hum = char:FindFirstChildOfClass("Humanoid")
+            
+            if backpack and hum then
+                local weaponName = WEAPONS[currentWeaponIndex]
+                local toolInBackpack = backpack:FindFirstChild(weaponName)
+                
+                if toolInBackpack then 
+                    hum:EquipTool(toolInBackpack) 
+                end
 
-        local hum = char:FindFirstChildOfClass("Humanoid")
-        if not hum then continue end
-
-        local weaponName = WEAPONS[currentWeaponIndex]
-        local toolInBackpack = backpack:FindFirstChild(weaponName)
-        
-        if toolInBackpack then 
-            hum:EquipTool(toolInBackpack) 
+                currentWeaponIndex = currentWeaponIndex + 1
+                if currentWeaponIndex > #WEAPONS then currentWeaponIndex = 1 end
+            end
         end
-
-        currentWeaponIndex = currentWeaponIndex + 1
-        if currentWeaponIndex > #WEAPONS then currentWeaponIndex = 1 end
     end
 end)
 
 -------------------------------------------------
--- AUTO SKILL (เวลาเดิม: 0.25)
+-- 6. AUTO SKILL (0.25 วิ - ใช้คำสั่งลัด ไม่หน่วงเครื่อง)
 -------------------------------------------------
 task.spawn(function()
-    while task.wait(0.25) do
+    while tWait(0.25) do
         pcall(function()
-            VirtualInputManager:SendKeyEvent(true, "X", false, game)
-            task.wait()
-            VirtualInputManager:SendKeyEvent(false, "X", false, game)
+            sendKey(VirtualInputManager, true, "X", false, game)
+            tWait()
+            sendKey(VirtualInputManager, false, "X", false, game)
         end)
     end
 end)
 
 -------------------------------------------------
--- MAIN FARM ROUTE (เวลาเดิม: วาร์ป 0.6, ยืน 3)
+-- 7. MAIN FARM ROUTE (วาร์ป 0.6 วิ, ยืน 3 วิ)
 -------------------------------------------------
 local FarmRoute = {
     {portal = "Snow", pos = CFrame.new(-407.5099, -1.1388, -990.4914)},
@@ -154,10 +162,9 @@ task.spawn(function()
     while true do
         for _, area in ipairs(FarmRoute) do
             portal(area.portal)
-            task.wait(0.6)
+            tWait(0.6)
             fasttp(area.pos)
-            task.wait(3)
+            tWait(3)
         end
     end
 end)
-
