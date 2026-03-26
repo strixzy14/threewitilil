@@ -63,11 +63,17 @@ task.spawn(function()
 end)
 
 -------------------------------------------------
--- GLOBAL TOGGLES (แก้ไขให้รับค่าจาก getgenv)
+-- GLOBAL TOGGLES (แก้ไขบั๊กตรวจสอบค่า boolean)
 -------------------------------------------------
--- ตรวจสอบค่าจากภายนอก ถ้าไม่มีให้ Default เป็น true
-local _G_AutoFarm = (getgenv().AutoFarm ~= nil) and getgenv().AutoFarm or true
-local _G_WhiteScreen = (getgenv().WhiteScreen ~= nil) and getgenv().WhiteScreen or true
+local _G_AutoFarm = true
+if getgenv().AutoFarm ~= nil then
+    _G_AutoFarm = getgenv().AutoFarm
+end
+
+local _G_WhiteScreen = true
+if getgenv().WhiteScreen ~= nil then
+    _G_WhiteScreen = getgenv().WhiteScreen
+end
 
 -------------------------------------------------
 -- GUI SYSTEM (รองรับ Mobile)
