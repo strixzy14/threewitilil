@@ -26,6 +26,23 @@ local ObservationRemote = RemoteEvents:WaitForChild("ObservationHakiRemote")
 local SettingsToggle = RemoteEvents:WaitForChild("SettingsToggle")
 
 -------------------------------------------------
+-- MANUAL FPS LOCKER (จำกัด FPS ที่ 15)
+-------------------------------------------------
+local FPS_CAP = 15
+local clock = os.clock
+
+task.spawn(function()
+    while true do
+        local start = clock()
+        RunService.Heartbeat:Wait() -- รอ 1 เฟรมของเกม
+        -- ทำการวนลูปเปล่าเพื่อดึงเวลาให้ครบตามที่กำหนด (1/15 วินาที)
+        while clock() - start < 1 / FPS_CAP do
+            -- ไม่ต้องใส่อะไรตรงนี้ แค่ให้มันหน่วงเวลาเฉยๆ
+        end
+    end
+end)
+
+-------------------------------------------------
 -- GLOBAL TOGGLES (กำหนดค่าเริ่มต้นที่นี่)
 -------------------------------------------------
 local _G_AutoFarm = true
