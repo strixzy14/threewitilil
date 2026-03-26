@@ -335,7 +335,6 @@ end)
 -- MAIN FARM
 -------------------------------------------------
 local FarmRoute = {
-    {portal = "Snow", pos = CFrame.new(-407.5099, -1.1388, -990.4914)},
     {portal = "Shibuya", pos = CFrame.new(1400.0594, 8.4861, 484.9847)},
     {portal = "HuecoMundo", pos = CFrame.new(-369.4567, -0.1593, 1092.5155)},
     {portal = "Shinjuku", pos = CFrame.new(-17.3715, 1.8984, -1842.6716)},
