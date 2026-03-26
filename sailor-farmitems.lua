@@ -25,32 +25,33 @@ local ObservationRemote = RemoteEvents:WaitForChild("ObservationHakiRemote")
 local SettingsToggle = RemoteEvents:WaitForChild("SettingsToggle")
 
 -------------------------------------------------
--- MEMORY OPTIMIZATION & ANTI RAM LEAK
+-- MOBILE OPTIMIZATION & ANTI RAM LEAK
 -------------------------------------------------
--- 1. ปิดการเก็บ Log ของระบบเพื่อลดการกินแรมเวลาเปิดข้ามคืน
+-- ปิดการเก็บ Log ของเกม (ช่วยประหยัดแรมระยะยาว)
 pcall(function()
     LogService.MessageOut:Connect(function() end)
     ScriptContext.Error:Connect(function() end)
 end)
 
--- 2. ระบบเคลียร์แรมอัตโนมัติ (ทำงานทุกๆ 120 วินาที)
+-- ระบบดักลบขยะแบบ Real-time (ไม่สแกนทั้งแมพให้เครื่องค้าง)
+workspace.DescendantAdded:Connect(function(v)
+    pcall(function()
+        if v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Smoke") or v:IsA("Fire") or v:IsA("Sparkles") then
+            v.Enabled = false
+            v:Destroy()
+        elseif v:IsA("Decal") or v:IsA("Texture") then
+            v:Destroy()
+        end
+    end)
+end)
+
+-- ล้าง Cache แรมแบบค่อยเป็นค่อยไป (ไม่กระชาก CPU)
 task.spawn(function()
-    while task.wait(120) do
+    while task.wait(30) do
         pcall(function()
-            -- บังคับล้าง Memory ของ Lua
-            collectgarbage("collect")
+            collectgarbage("step", 200)
             
-            -- วนลบเอฟเฟกต์/ขยะ ที่เกิดใหม่ระหว่างฟาร์ม
-            for _, v in pairs(workspace:GetDescendants()) do
-                if v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Smoke") or v:IsA("Fire") or v:IsA("Sparkles") then
-                    v.Enabled = false
-                    v:Destroy()
-                elseif v:IsA("Decal") or v:IsA("Texture") then
-                    v:Destroy()
-                end
-            end
-            
-            -- ลบโฟลเดอร์เก็บขยะของเกม (ถ้ามี)
+            -- ลบแค่ในโฟลเดอร์ขยะเฉพาะจุด
             if workspace:FindFirstChild("Debris") then
                 workspace.Debris:ClearAllChildren()
             end
@@ -62,13 +63,13 @@ task.spawn(function()
 end)
 
 -------------------------------------------------
--- GLOBAL TOGGLES (กำหนดค่าเริ่มต้นที่นี่)
+-- GLOBAL TOGGLES
 -------------------------------------------------
 local _G_AutoFarm = true
-local _G_WhiteScreen = true -- เปิดจอขาวตั้งแต่เริ่มเพื่อเซฟทรัพยากร
+local _G_WhiteScreen = true
 
 -------------------------------------------------
--- GUI SYSTEM (ปรับปรุงให้ปุ่มอยู่เหนือจอขาว)
+-- GUI SYSTEM (รองรับ Mobile)
 -------------------------------------------------
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "FarmControlGUI"
@@ -80,9 +81,6 @@ else
     ScreenGui.Parent = player:WaitForChild("PlayerGui")
 end
 
--------------------------------------------------
--- WHITE SCREEN FRAME (ทำหน้าที่เป็นพื้นหลัง)
--------------------------------------------------
 local WhiteScreenFrame = Instance.new("Frame")
 WhiteScreenFrame.Size = UDim2.new(1.1, 0, 1.1, 0)
 WhiteScreenFrame.Position = UDim2.new(-0.05, 0, -0.05, 0) 
@@ -91,9 +89,6 @@ WhiteScreenFrame.ZIndex = 1
 WhiteScreenFrame.Visible = _G_WhiteScreen 
 WhiteScreenFrame.Parent = ScreenGui
 
--------------------------------------------------
--- MAIN FRAME (กล่องคอนโทรล)
--------------------------------------------------
 local MainFrame = Instance.new("Frame")
 MainFrame.Size = UDim2.new(0, 200, 0, 120)
 MainFrame.Position = UDim2.new(0.5, -100, 0.5, -60)
@@ -117,9 +112,6 @@ Title.Font = Enum.Font.GothamBold
 Title.ZIndex = 3 
 Title.Parent = MainFrame
 
--------------------------------------------------
--- BUTTONS
--------------------------------------------------
 local FarmBtn = Instance.new("TextButton")
 FarmBtn.Size = UDim2.new(0.9, 0, 0, 35)
 FarmBtn.Position = UDim2.new(0.05, 0, 0, 35)
@@ -183,9 +175,6 @@ local function MakeDraggable(gui)
 end
 MakeDraggable(MainFrame)
 
--------------------------------------------------
--- BUTTON LOGIC
--------------------------------------------------
 FarmBtn.MouseButton1Click:Connect(function()
     _G_AutoFarm = not _G_AutoFarm
     if _G_AutoFarm then
@@ -235,6 +224,7 @@ pcall(function()
         Terrain.WaterReflectance = 0
         Terrain.WaterTransparency = 0
     end
+    -- ลบกราฟิกเริ่มต้นครั้งเดียวเท่านั้น
     for _, v in pairs(game:GetDescendants()) do
         if v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Smoke") or v:IsA("Fire") or v:IsA("Sparkles") then
             v.Enabled = false
@@ -255,13 +245,10 @@ pcall(function()
 end)
 
 -------------------------------------------------
--- WEAPONS
+-- WEAPONS & UTILITIES
 -------------------------------------------------
 local WEAPONS = {"Soul Reaper", "Strongest In History"}
 
--------------------------------------------------
--- UTILITIES
--------------------------------------------------
 local function fasttp(cf)
     local char = player.Character
     if not char then return end
@@ -294,11 +281,11 @@ task.spawn(function()
 end)
 
 -------------------------------------------------
--- AUTO EQUIP MULTI WEAPON
+-- AUTO EQUIP (หน่วงเวลาให้มือถือรับไหว)
 -------------------------------------------------
 task.spawn(function()
     local currentWeaponIndex = 1
-    while task.wait(0.5) do
+    while task.wait(1) do -- ปรับจาก 0.5 เป็น 1 วิ
         if not _G_AutoFarm then continue end
 
         local char = player.Character
@@ -319,14 +306,16 @@ task.spawn(function()
 end)
 
 -------------------------------------------------
--- AUTO SKILL (X)
+-- AUTO SKILL (ปรับจูนสำหรับมือถือ)
 -------------------------------------------------
 task.spawn(function()
-    while task.wait(0.25) do
+    while task.wait(0.5) do -- ปรับจาก 0.25 เป็น 0.5 วิ เพื่อลดอาการค้าง
         if _G_AutoFarm then
-            VirtualInputManager:SendKeyEvent(true, "X", false, game)
-            task.wait()
-            VirtualInputManager:SendKeyEvent(false, "X", false, game)
+            pcall(function()
+                VirtualInputManager:SendKeyEvent(true, "X", false, game)
+                task.wait(0.05)
+                VirtualInputManager:SendKeyEvent(false, "X", false, game)
+            end)
         end
     end
 end)
