@@ -66,7 +66,7 @@ end)
 -- GLOBAL TOGGLES
 -------------------------------------------------
 local _G_AutoFarm = true
-local _G_WhiteScreen = true
+local _G_WhiteScreen = false
 
 -------------------------------------------------
 -- GUI SYSTEM (รองรับ Mobile)
