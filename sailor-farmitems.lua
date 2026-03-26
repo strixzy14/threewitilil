@@ -1,6 +1,3 @@
-if setfpscap then setfpscap(15) end
-
-
 repeat task.wait() until game:IsLoaded()
 
 -------------------------------------------------
@@ -13,6 +10,8 @@ local Lighting = game:GetService("Lighting")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local CoreGui = game:GetService("CoreGui")
+local LogService = game:GetService("LogService")
+local ScriptContext = game:GetService("ScriptContext")
 
 local player = Players.LocalPlayer
 
@@ -26,19 +25,39 @@ local ObservationRemote = RemoteEvents:WaitForChild("ObservationHakiRemote")
 local SettingsToggle = RemoteEvents:WaitForChild("SettingsToggle")
 
 -------------------------------------------------
--- MANUAL FPS LOCKER (จำกัด FPS ที่ 15)
+-- MEMORY OPTIMIZATION & ANTI RAM LEAK
 -------------------------------------------------
-local FPS_CAP = 15
-local clock = os.clock
+-- 1. ปิดการเก็บ Log ของระบบเพื่อลดการกินแรมเวลาเปิดข้ามคืน
+pcall(function()
+    LogService.MessageOut:Connect(function() end)
+    ScriptContext.Error:Connect(function() end)
+end)
 
+-- 2. ระบบเคลียร์แรมอัตโนมัติ (ทำงานทุกๆ 120 วินาที)
 task.spawn(function()
-    while true do
-        local start = clock()
-        RunService.Heartbeat:Wait() -- รอ 1 เฟรมของเกม
-        -- ทำการวนลูปเปล่าเพื่อดึงเวลาให้ครบตามที่กำหนด (1/15 วินาที)
-        while clock() - start < 1 / FPS_CAP do
-            -- ไม่ต้องใส่อะไรตรงนี้ แค่ให้มันหน่วงเวลาเฉยๆ
-        end
+    while task.wait(120) do
+        pcall(function()
+            -- บังคับล้าง Memory ของ Lua
+            collectgarbage("collect")
+            
+            -- วนลบเอฟเฟกต์/ขยะ ที่เกิดใหม่ระหว่างฟาร์ม
+            for _, v in pairs(workspace:GetDescendants()) do
+                if v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Smoke") or v:IsA("Fire") or v:IsA("Sparkles") then
+                    v.Enabled = false
+                    v:Destroy()
+                elseif v:IsA("Decal") or v:IsA("Texture") then
+                    v:Destroy()
+                end
+            end
+            
+            -- ลบโฟลเดอร์เก็บขยะของเกม (ถ้ามี)
+            if workspace:FindFirstChild("Debris") then
+                workspace.Debris:ClearAllChildren()
+            end
+            if workspace:FindFirstChild("Effects") then
+                workspace.Effects:ClearAllChildren()
+            end
+        end)
     end
 end)
 
@@ -46,17 +65,16 @@ end)
 -- GLOBAL TOGGLES (กำหนดค่าเริ่มต้นที่นี่)
 -------------------------------------------------
 local _G_AutoFarm = true
-local _G_WhiteScreen = true -- ปรับเป็น True เพื่อเปิดจอขาวตั้งแต่เริ่ม
+local _G_WhiteScreen = true -- เปิดจอขาวตั้งแต่เริ่มเพื่อเซฟทรัพยากร
 
 -------------------------------------------------
 -- GUI SYSTEM (ปรับปรุงให้ปุ่มอยู่เหนือจอขาว)
 -------------------------------------------------
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "FarmControlGUI"
-ScreenGui.ResetOnSpawn = false -- ป้องกัน GUI หายเวลาตาย
-ScreenGui.DisplayOrder = 999 -- ปรากฏเหนือ GUI อื่นๆ
+ScreenGui.ResetOnSpawn = false 
+ScreenGui.DisplayOrder = 999 
 
--- พยายามใส่ใน CoreGui เพื่อไม่ให้ GUI ของเกมบัง
 if pcall(function() ScreenGui.Parent = CoreGui end) then
 else
     ScreenGui.Parent = player:WaitForChild("PlayerGui")
@@ -66,11 +84,11 @@ end
 -- WHITE SCREEN FRAME (ทำหน้าที่เป็นพื้นหลัง)
 -------------------------------------------------
 local WhiteScreenFrame = Instance.new("Frame")
-WhiteScreenFrame.Size = UDim2.new(1.1, 0, 1.1, 0) -- บังให้เกินจอเล็กน้อย
-WhiteScreenFrame.Position = UDim2.new(-0.05, 0, -0.05, 0) -- จัดกลางให้บังมิด
+WhiteScreenFrame.Size = UDim2.new(1.1, 0, 1.1, 0)
+WhiteScreenFrame.Position = UDim2.new(-0.05, 0, -0.05, 0) 
 WhiteScreenFrame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-WhiteScreenFrame.ZIndex = 1 -- ZIndex ต่ำที่สุดเพื่อให้ปุ่มอยู่ด้านบน
-WhiteScreenFrame.Visible = _G_WhiteScreen -- เปิดตามค่าเริ่มต้น
+WhiteScreenFrame.ZIndex = 1 
+WhiteScreenFrame.Visible = _G_WhiteScreen 
 WhiteScreenFrame.Parent = ScreenGui
 
 -------------------------------------------------
@@ -82,7 +100,7 @@ MainFrame.Position = UDim2.new(0.5, -100, 0.5, -60)
 MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
-MainFrame.ZIndex = 2 -- ZIndex สูงกว่าเฟรมจอขาว
+MainFrame.ZIndex = 2 
 MainFrame.Parent = ScreenGui
 
 local UICorner = Instance.new("UICorner")
@@ -96,7 +114,7 @@ Title.Text = "Farm Controller"
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 Title.TextSize = 18
 Title.Font = Enum.Font.GothamBold
-Title.ZIndex = 3 -- ZIndex สูงสุด
+Title.ZIndex = 3 
 Title.Parent = MainFrame
 
 -------------------------------------------------
@@ -108,16 +126,15 @@ FarmBtn.Position = UDim2.new(0.05, 0, 0, 35)
 FarmBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 FarmBtn.Font = Enum.Font.GothamBold
 FarmBtn.TextSize = 14
-FarmBtn.ZIndex = 3 -- ZIndex สูงสุด
+FarmBtn.ZIndex = 3 
 FarmBtn.Parent = MainFrame
 Instance.new("UICorner", FarmBtn).CornerRadius = UDim.new(0, 6)
 
--- ปรับสี/ข้อความของปุ่ม Farm เริ่มต้น
 if _G_AutoFarm then
-    FarmBtn.BackgroundColor3 = Color3.fromRGB(40, 200, 40) -- สีเขียว
+    FarmBtn.BackgroundColor3 = Color3.fromRGB(40, 200, 40)
     FarmBtn.Text = "Auto Farm: ON"
 else
-    FarmBtn.BackgroundColor3 = Color3.fromRGB(200, 40, 40) -- สีแดง
+    FarmBtn.BackgroundColor3 = Color3.fromRGB(200, 40, 40)
     FarmBtn.Text = "Auto Farm: OFF"
 end
 
@@ -127,22 +144,19 @@ WhiteScreenBtn.Position = UDim2.new(0.05, 0, 0, 75)
 WhiteScreenBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 WhiteScreenBtn.Font = Enum.Font.GothamBold
 WhiteScreenBtn.TextSize = 14
-WhiteScreenBtn.ZIndex = 3 -- ZIndex สูงสุด
+WhiteScreenBtn.ZIndex = 3 
 WhiteScreenBtn.Parent = MainFrame
 Instance.new("UICorner", WhiteScreenBtn).CornerRadius = UDim.new(0, 6)
 
--- ปรับสี/ข้อความของปุ่ม จอขาว เริ่มต้น
 if _G_WhiteScreen then
-    WhiteScreenBtn.BackgroundColor3 = Color3.fromRGB(40, 200, 40) -- สีเขียว
+    WhiteScreenBtn.BackgroundColor3 = Color3.fromRGB(40, 200, 40)
     WhiteScreenBtn.Text = "White Screen: ON"
-    -- สั่งปิด 3D Rendering ทันที
     pcall(function() RunService:Set3dRenderingEnabled(false) end)
 else
-    WhiteScreenBtn.BackgroundColor3 = Color3.fromRGB(200, 40, 40) -- สีแดง
+    WhiteScreenBtn.BackgroundColor3 = Color3.fromRGB(200, 40, 40)
     WhiteScreenBtn.Text = "White Screen: OFF"
 end
 
--- ฟังก์ชันทำให้ลาก GUI ได้ (Mobile & PC)
 local function MakeDraggable(gui)
     local dragging, dragInput, dragStart, startPos
     gui.InputBegan:Connect(function(input)
@@ -199,7 +213,7 @@ WhiteScreenBtn.MouseButton1Click:Connect(function()
 end)
 
 -------------------------------------------------
--- GAME SETTINGS & FPS BOOST (เดิม)
+-- GAME SETTINGS & FPS BOOST (รันครั้งแรก)
 -------------------------------------------------
 pcall(function()
     local settingsToToggle = {"DisableCutscene", "DisableVFX", "MuteSFX", "MuteMusic", "DisableScreenShake", "RemoveTexture", "RemoveShadows"}
