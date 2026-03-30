@@ -50,7 +50,7 @@ task.spawn(function()
     while task.wait(30) do
         pcall(function()
             collectgarbage("step", 200)
-            
+      
             -- ลบแค่ในโฟลเดอร์ขยะเฉพาะจุด
             if workspace:FindFirstChild("Debris") then
                 workspace.Debris:ClearAllChildren()
@@ -228,13 +228,7 @@ pcall(function()
     Lighting.GlobalShadows = false
     Lighting.FogEnd = 9e9
     Lighting.ShadowSoftness = 0
-    local Terrain = workspace:FindFirstChildOfClass("Terrain")
-    if Terrain then
-        Terrain.WaterWaveSize = 0
-        Terrain.WaterWaveSpeed = 0
-        Terrain.WaterReflectance = 0
-        Terrain.WaterTransparency = 0
-    end
+    
     -- ลบกราฟิกเริ่มต้นครั้งเดียวเท่านั้น
     for _, v in pairs(game:GetDescendants()) do
         if v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Smoke") or v:IsA("Fire") or v:IsA("Sparkles") then
@@ -253,6 +247,58 @@ pcall(function()
             v:Destroy()
         end
     end
+end)
+
+-------------------------------------------------
+-- MAIN FARM ROUTE (เอาขึ้นมาไว้ก่อนเพื่อใช้สร้างพื้น)
+-------------------------------------------------
+local FarmRoute = {
+    {portal = "Shibuya", pos = CFrame.new(1400.0594, 8.4861, 484.9847)},
+    {portal = "HuecoMundo", pos = CFrame.new(-369.4567, -0.1593, 1092.5155)},
+    {portal = "Shinjuku", pos = CFrame.new(-17.3715, 1.8984, -1842.6716)},
+    {portal = "Shinjuku", pos = CFrame.new(666.2935, 1.8831, -1692.1214)},
+    {portal = "Slime", pos = CFrame.new(-1123.8552, 13.9182, 368.3176)},
+    {portal = "Academy", pos = CFrame.new(1068.3764, 1.7783, 1277.8568)},
+    {portal = "Judgement", pos = CFrame.new(-1270.6287, 1.1774, -1192.4418)},
+    {portal = "Ninja", pos = CFrame.new(-1878.8419, 8.5140, -739.5654)},
+    {portal = "Lawless", pos = CFrame.new(52.5574, 0.5787, 1815.9211)},
+    {portal = "Tower", pos = CFrame.new(-1270.6287, 1.1774, -1192.4418)}
+}
+
+-------------------------------------------------
+-- EXTREME MAP DELETION & INVISIBLE PLATFORMS (ลบแมพทิ้ง + สร้างที่ยืน)
+-------------------------------------------------
+task.spawn(function()
+    task.wait(3) -- รอให้โหลดสิ่งต่างๆ เสร็จก่อนค่อยลบ
+    pcall(function()
+        -- 1. ลบ Terrain ทิ้งทั้งหมด (น้ำ, หญ้า, พื้นดิน)
+        local Terrain = workspace:FindFirstChildOfClass("Terrain")
+        if Terrain then
+            Terrain:Clear()
+        end
+        
+        -- 2. วนลบชิ้นส่วนแมพทั้งหมดที่ "ไม่มีชีวิต"
+        for _, v in pairs(workspace:GetDescendants()) do
+            if v:IsA("BasePart") and not v:IsA("Terrain") then
+                -- เช็คว่าไม่ได้อยู่ในตัวละคร (Player หรือ มอนสเตอร์)
+                local model = v:FindFirstAncestorOfClass("Model")
+                if not (model and model:FindFirstChildOfClass("Humanoid")) then
+                    pcall(function() v:Destroy() end)
+                end
+            end
+        end
+
+        -- 3. สร้างพื้นรองรับตรงจุดฟาร์มทุกจุด (กันตก)
+        for _, area in ipairs(FarmRoute) do
+            local platform = Instance.new("Part")
+            platform.Size = Vector3.new(100, 5, 100) -- แผ่นใหญ่ๆ 100x100
+            platform.CFrame = area.pos * CFrame.new(0, -5, 0) -- ให้อยู่ใต้เท้า CFrame พอดีเป๊ะ
+            platform.Anchored = true
+            platform.Transparency = 1 -- ล่องหน
+            platform.CanCollide = true
+            platform.Parent = workspace
+        end
+    end)
 end)
 
 -------------------------------------------------
@@ -292,11 +338,11 @@ task.spawn(function()
 end)
 
 -------------------------------------------------
--- AUTO EQUIP (หน่วงเวลาให้มือถือรับไหว)
+-- AUTO EQUIP
 -------------------------------------------------
 task.spawn(function()
     local currentWeaponIndex = 1
-    while task.wait(1) do -- ปรับจาก 0.5 เป็น 1 วิ
+    while task.wait(1) do 
         if not _G_AutoFarm then continue end
 
         local char = player.Character
@@ -317,10 +363,10 @@ task.spawn(function()
 end)
 
 -------------------------------------------------
--- AUTO SKILL (ปรับจูนสำหรับมือถือ)
+-- AUTO SKILL 
 -------------------------------------------------
 task.spawn(function()
-    while task.wait(0.5) do -- ปรับจาก 0.25 เป็น 0.5 วิ เพื่อลดอาการค้าง
+    while task.wait(0.5) do 
         if _G_AutoFarm then
             pcall(function()
                 VirtualInputManager:SendKeyEvent(true, "X", false, game)
@@ -334,19 +380,6 @@ end)
 -------------------------------------------------
 -- MAIN FARM
 -------------------------------------------------
-local FarmRoute = {
-    {portal = "Shibuya", pos = CFrame.new(1400.0594, 8.4861, 484.9847)},
-    {portal = "HuecoMundo", pos = CFrame.new(-369.4567, -0.1593, 1092.5155)},
-    {portal = "Shinjuku", pos = CFrame.new(-17.3715, 1.8984, -1842.6716)},
-    {portal = "Shinjuku", pos = CFrame.new(666.2935, 1.8831, -1692.1214)},
-    {portal = "Slime", pos = CFrame.new(-1123.8552, 13.9182, 368.3176)},
-    {portal = "Academy", pos = CFrame.new(1068.3764, 1.7783, 1277.8568)},
-    {portal = "Judgement", pos = CFrame.new(-1270.6287, 1.1774, -1192.4418)},
-    {portal = "Ninja", pos = CFrame.new(-1878.8419, 8.5140, -739.5654)},
-    {portal = "Lawless", pos = CFrame.new(52.5574, 0.5787, 1815.9211)},
-    {portal = "Tower", pos = CFrame.new(-1270.6287, 1.1774, -1192.4418)}
-}
-
 task.spawn(function()
     while true do
         if _G_AutoFarm then
@@ -362,4 +395,3 @@ task.spawn(function()
         end
     end
 end)
-
