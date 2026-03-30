@@ -21,7 +21,7 @@ local ObservationRemote = RemoteEvents:WaitForChild("ObservationHakiRemote")
 local SettingsToggle = RemoteEvents:WaitForChild("SettingsToggle")
 
 -------------------------------------------------
--- GLOBAL TOGGLES & CONFIG
+-- GLOBAL TOGGLES & CONFIG (เพิ่มระบบตั้งค่าอาวุธ)
 -------------------------------------------------
 local _G_AutoFarm = true
 if getgenv().AutoFarm ~= nil then 
@@ -33,74 +33,86 @@ if getgenv().WhiteScreen ~= nil then
     _G_WhiteScreen = getgenv().WhiteScreen 
 end
 
-local WEAPONS = {"Soul Reaper", "Strongest In History"}
+-- ตั้งค่าอาวุธ: ถ้ามีใน getgenv ให้ใช้ตามนั้น ถ้าไม่มีให้ใช้ค่า Default
+local WEAPONS = {"Soul Reaper", "Strongest In History"} 
+if getgenv().Weapons ~= nil and type(getgenv().Weapons) == "table" then
+    WEAPONS = getgenv().Weapons
+end
 
 -------------------------------------------------
--- GUI SYSTEM (ปุ่มกดกลางจอ)
+-- 💎 ULTRA MINIMAL GUI (ดีไซน์แคปซูล ไม่มีขอบดำ)
 -------------------------------------------------
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "FarmControlGUI"
+ScreenGui.Name = "XDFlex_CompactUI"
 ScreenGui.ResetOnSpawn = false 
-ScreenGui.DisplayOrder = 999 
+ScreenGui.DisplayOrder = 9999
+ScreenGui.IgnoreGuiInset = true -- 🌟 โค้ดนี้คือตัวแก้ปัญหา "ขอบดำ" (บังมิดทั้งจอ 100%)
 
 pcall(function() ScreenGui.Parent = CoreGui end)
 if not ScreenGui.Parent then ScreenGui.Parent = player:WaitForChild("PlayerGui") end
 
+-- เฟรมจอขาว (ตอนนี้จะบังเนียน 100% ไม่มีขอบ)
 local WhiteScreenFrame = Instance.new("Frame")
-WhiteScreenFrame.Size = UDim2.new(1.1, 0, 1.1, 0)
-WhiteScreenFrame.Position = UDim2.new(-0.05, 0, -0.05, 0) 
+WhiteScreenFrame.Size = UDim2.new(1, 0, 1, 0)
+WhiteScreenFrame.Position = UDim2.new(0, 0, 0, 0) 
 WhiteScreenFrame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+WhiteScreenFrame.BorderSizePixel = 0
 WhiteScreenFrame.ZIndex = 1 
 WhiteScreenFrame.Visible = _G_WhiteScreen 
 WhiteScreenFrame.Parent = ScreenGui
 
+-- กล่องรวมปุ่มแบบแคปซูล (Pill Design) เล็ก กระทัดรัด
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 200, 0, 120)
-MainFrame.Position = UDim2.new(0.5, -100, 0.5, -60)
-MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+MainFrame.Size = UDim2.new(0, 250, 0, 45)
+MainFrame.Position = UDim2.new(0.5, -125, 0, 20) -- ลอยอยู่ตรงกลางด้านบน
+MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+MainFrame.BackgroundTransparency = 0.3 -- โปร่งแสงนิดๆ ให้ดูหรู
+MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
 MainFrame.ZIndex = 2 
 MainFrame.Parent = ScreenGui
-Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 8)
+Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(1, 0) -- ขอบมนแบบแคปซูล
 
-local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(1, 0, 0, 30)
-Title.BackgroundTransparency = 1
-Title.Text = "Farm Controller"
-Title.TextColor3 = Color3.fromRGB(255, 255, 255)
-Title.TextSize = 18
-Title.Font = Enum.Font.GothamBold
-Title.ZIndex = 3 
-Title.Parent = MainFrame
+-- จัดเรียงปุ่มซ้ายขวาอัตโนมัติ
+local UIListLayout = Instance.new("UIListLayout")
+UIListLayout.FillDirection = Enum.FillDirection.Horizontal
+UIListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+UIListLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+UIListLayout.Padding = UDim.new(0, 10)
+UIListLayout.Parent = MainFrame
 
+-- ปุ่ม Auto Farm
 local FarmBtn = Instance.new("TextButton")
-FarmBtn.Size = UDim2.new(0.9, 0, 0, 35)
-FarmBtn.Position = UDim2.new(0.05, 0, 0, 35)
-FarmBtn.BackgroundColor3 = _G_AutoFarm and Color3.fromRGB(40, 200, 40) or Color3.fromRGB(200, 40, 40)
-FarmBtn.Text = _G_AutoFarm and "Auto Farm: ON" or "Auto Farm: OFF"
+FarmBtn.Size = UDim2.new(0, 105, 0, 32)
+FarmBtn.BackgroundColor3 = _G_AutoFarm and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(231, 76, 60)
+FarmBtn.Text = _G_AutoFarm and "⚔️ Farm: ON" or "⚔️ Farm: OFF"
 FarmBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+FarmBtn.Font = Enum.Font.GothamBold
+FarmBtn.TextSize = 12
 FarmBtn.ZIndex = 3 
 FarmBtn.Parent = MainFrame
-Instance.new("UICorner", FarmBtn).CornerRadius = UDim.new(0, 6)
+Instance.new("UICorner", FarmBtn).CornerRadius = UDim.new(1, 0)
 
+-- ปุ่ม White Screen
 local WhiteScreenBtn = Instance.new("TextButton")
-WhiteScreenBtn.Size = UDim2.new(0.9, 0, 0, 35)
-WhiteScreenBtn.Position = UDim2.new(0.05, 0, 0, 75)
-WhiteScreenBtn.BackgroundColor3 = _G_WhiteScreen and Color3.fromRGB(40, 200, 40) or Color3.fromRGB(200, 40, 40)
-WhiteScreenBtn.Text = _G_WhiteScreen and "White Screen: ON" or "White Screen: OFF"
-WhiteScreenBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+WhiteScreenBtn.Size = UDim2.new(0, 105, 0, 32)
+WhiteScreenBtn.BackgroundColor3 = _G_WhiteScreen and Color3.fromRGB(236, 240, 241) or Color3.fromRGB(52, 73, 94)
+WhiteScreenBtn.Text = _G_WhiteScreen and "⚪ Screen: ON" or "⚫ Screen: OFF"
+WhiteScreenBtn.TextColor3 = _G_WhiteScreen and Color3.fromRGB(0, 0, 0) or Color3.fromRGB(255, 255, 255)
+WhiteScreenBtn.Font = Enum.Font.GothamBold
+WhiteScreenBtn.TextSize = 12
 WhiteScreenBtn.ZIndex = 3 
 WhiteScreenBtn.Parent = MainFrame
-Instance.new("UICorner", WhiteScreenBtn).CornerRadius = UDim.new(0, 6)
+Instance.new("UICorner", WhiteScreenBtn).CornerRadius = UDim.new(1, 0)
 
--- อ่านค่า Config เพื่อเปิด/ปิดจอขาวตอนรันครั้งแรก
+-- อ่านค่า Config เพื่อเปิด/ปิด 3D
 if _G_WhiteScreen then 
     pcall(function() RunService:Set3dRenderingEnabled(false) end) 
 else
     pcall(function() RunService:Set3dRenderingEnabled(true) end) 
 end
 
--- ระบบลาก GUI
+-- ระบบลาก GUI (ลากตรงช่องว่างระหว่างปุ่มได้เลย)
 local function MakeDraggable(gui)
     local dragging, dragInput, dragStart, startPos
     gui.InputBegan:Connect(function(input)
@@ -123,14 +135,15 @@ MakeDraggable(MainFrame)
 
 FarmBtn.MouseButton1Click:Connect(function()
     _G_AutoFarm = not _G_AutoFarm
-    FarmBtn.BackgroundColor3 = _G_AutoFarm and Color3.fromRGB(40, 200, 40) or Color3.fromRGB(200, 40, 40)
-    FarmBtn.Text = _G_AutoFarm and "Auto Farm: ON" or "Auto Farm: OFF"
+    FarmBtn.BackgroundColor3 = _G_AutoFarm and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(231, 76, 60)
+    FarmBtn.Text = _G_AutoFarm and "⚔️ Farm: ON" or "⚔️ Farm: OFF"
 end)
 
 WhiteScreenBtn.MouseButton1Click:Connect(function()
     _G_WhiteScreen = not _G_WhiteScreen
-    WhiteScreenBtn.BackgroundColor3 = _G_WhiteScreen and Color3.fromRGB(40, 200, 40) or Color3.fromRGB(200, 40, 40)
-    WhiteScreenBtn.Text = _G_WhiteScreen and "White Screen: ON" or "White Screen: OFF"
+    WhiteScreenBtn.BackgroundColor3 = _G_WhiteScreen and Color3.fromRGB(236, 240, 241) or Color3.fromRGB(52, 73, 94)
+    WhiteScreenBtn.Text = _G_WhiteScreen and "⚪ Screen: ON" or "⚫ Screen: OFF"
+    WhiteScreenBtn.TextColor3 = _G_WhiteScreen and Color3.fromRGB(0, 0, 0) or Color3.fromRGB(255, 255, 255)
     WhiteScreenFrame.Visible = _G_WhiteScreen
     pcall(function() RunService:Set3dRenderingEnabled(not _G_WhiteScreen) end)
 end)
@@ -166,7 +179,7 @@ local FarmRoute = {
 }
 
 -------------------------------------------------
--- ☢️ OPTIMIZED NUKE MAP SYSTEM (ลบแมพแต่เก็บมอน)
+-- ☢️ OPTIMIZED NUKE MAP SYSTEM 
 -------------------------------------------------
 local PlatformFolder = workspace:FindFirstChild("FarmPlatforms") or Instance.new("Folder", workspace)
 PlatformFolder.Name = "FarmPlatforms"
@@ -185,9 +198,7 @@ local function SuperNuke(v)
     local char = player.Character
     if not v or v == char or v == PlatformFolder or v.Name == "FarmPlatforms" then return end
     if v:IsA("Camera") or v:IsA("Terrain") then return end
-    
     if v:FindFirstChildOfClass("Humanoid") or v:IsA("Model") and v:FindFirstChildOfClass("Humanoid", true) then return end
-
     pcall(function() v:Destroy() end)
 end
 
