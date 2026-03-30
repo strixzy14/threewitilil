@@ -152,6 +152,8 @@ settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
 -------------------------------------------------
 local FarmRoute = {
     {portal = "Shibuya", pos = CFrame.new(1400.0594, 8.4861, 484.9847)},
+    {portal = "Shibuya", pos = CFrame.new(1563.0409, 72.7205, -31.2679)},
+    {portal = "Shibuya", pos = CFrame.new(1854.0795, 8.4861, 342.6972)},
     {portal = "HuecoMundo", pos = CFrame.new(-369.4567, -0.1593, 1092.5155)},
     {portal = "Shinjuku", pos = CFrame.new(-17.3715, 1.8984, -1842.6716)},
     {portal = "Shinjuku", pos = CFrame.new(666.2935, 1.8831, -1692.1214)},
@@ -291,4 +293,3 @@ end)
 task.spawn(function()
     while task.wait(60) do collectgarbage("step", 200) end
 end)
-
