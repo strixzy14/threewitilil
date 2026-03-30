@@ -6,7 +6,6 @@ repeat task.wait() until game:IsLoaded()
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local VirtualInputManager = game:GetService("VirtualInputManager")
-local Lighting = game:GetService("Lighting")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local CoreGui = game:GetService("CoreGui")
@@ -27,56 +26,32 @@ local SettingsToggle = RemoteEvents:WaitForChild("SettingsToggle")
 -------------------------------------------------
 -- MOBILE OPTIMIZATION & ANTI RAM LEAK
 -------------------------------------------------
--- ปิดการเก็บ Log ของเกม (ช่วยประหยัดแรมระยะยาว)
 pcall(function()
     LogService.MessageOut:Connect(function() end)
     ScriptContext.Error:Connect(function() end)
 end)
 
--- ระบบดักลบขยะแบบ Real-time (ไม่สแกนทั้งแมพให้เครื่องค้าง)
-workspace.DescendantAdded:Connect(function(v)
-    pcall(function()
-        if v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Smoke") or v:IsA("Fire") or v:IsA("Sparkles") then
-            v.Enabled = false
-            v:Destroy()
-        elseif v:IsA("Decal") or v:IsA("Texture") then
-            v:Destroy()
-        end
-    end)
-end)
-
--- ล้าง Cache แรมแบบค่อยเป็นค่อยไป (ไม่กระชาก CPU)
 task.spawn(function()
     while task.wait(30) do
         pcall(function()
             collectgarbage("step", 200)
-      
-            -- ลบแค่ในโฟลเดอร์ขยะเฉพาะจุด
-            if workspace:FindFirstChild("Debris") then
-                workspace.Debris:ClearAllChildren()
-            end
-            if workspace:FindFirstChild("Effects") then
-                workspace.Effects:ClearAllChildren()
-            end
+            if workspace:FindFirstChild("Debris") then workspace.Debris:ClearAllChildren() end
+            if workspace:FindFirstChild("Effects") then workspace.Effects:ClearAllChildren() end
         end)
     end
 end)
 
 -------------------------------------------------
--- GLOBAL TOGGLES (แก้ไขบั๊กตรวจสอบค่า boolean)
+-- GLOBAL TOGGLES
 -------------------------------------------------
 local _G_AutoFarm = true
-if getgenv().AutoFarm ~= nil then
-    _G_AutoFarm = getgenv().AutoFarm
-end
+if getgenv().AutoFarm ~= nil then _G_AutoFarm = getgenv().AutoFarm end
 
 local _G_WhiteScreen = true
-if getgenv().WhiteScreen ~= nil then
-    _G_WhiteScreen = getgenv().WhiteScreen
-end
+if getgenv().WhiteScreen ~= nil then _G_WhiteScreen = getgenv().WhiteScreen end
 
 -------------------------------------------------
--- GUI SYSTEM (รองรับ Mobile)
+-- GUI SYSTEM
 -------------------------------------------------
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "FarmControlGUI"
@@ -147,17 +122,16 @@ WhiteScreenBtn.ZIndex = 3
 WhiteScreenBtn.Parent = MainFrame
 Instance.new("UICorner", WhiteScreenBtn).CornerRadius = UDim.new(0, 6)
 
--- แก้ไขตรงส่วนการตั้งค่าเริ่มต้นของ White Screen ให้เช็คเงื่อนไขก่อน:
 if _G_WhiteScreen then
     WhiteScreenBtn.BackgroundColor3 = Color3.fromRGB(40, 200, 40)
     WhiteScreenBtn.Text = "White Screen: ON"
     WhiteScreenFrame.Visible = true
-    pcall(function() RunService:Set3dRenderingEnabled(false) end) -- ปิดจอเฉพาะตอนเป็น true
+    pcall(function() RunService:Set3dRenderingEnabled(false) end)
 else
     WhiteScreenBtn.BackgroundColor3 = Color3.fromRGB(200, 40, 40)
     WhiteScreenBtn.Text = "White Screen: OFF"
     WhiteScreenFrame.Visible = false
-    pcall(function() RunService:Set3dRenderingEnabled(true) end)  -- เปิดจอถ้าตั้งเป็น false
+    pcall(function() RunService:Set3dRenderingEnabled(true) end)
 end
 
 local function MakeDraggable(gui)
@@ -213,7 +187,7 @@ WhiteScreenBtn.MouseButton1Click:Connect(function()
 end)
 
 -------------------------------------------------
--- GAME SETTINGS & FPS BOOST (รันครั้งแรก)
+-- GAME SETTINGS & FPS BOOST 
 -------------------------------------------------
 pcall(function()
     local settingsToToggle = {"DisableCutscene", "DisableVFX", "MuteSFX", "MuteMusic", "DisableScreenShake", "RemoveTexture", "RemoveShadows"}
@@ -222,35 +196,10 @@ pcall(function()
         task.wait(0.1)
     end
 end)
-
-pcall(function()
-    settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
-    Lighting.GlobalShadows = false
-    Lighting.FogEnd = 9e9
-    Lighting.ShadowSoftness = 0
-    
-    -- ลบกราฟิกเริ่มต้นครั้งเดียวเท่านั้น
-    for _, v in pairs(game:GetDescendants()) do
-        if v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Smoke") or v:IsA("Fire") or v:IsA("Sparkles") then
-            v.Enabled = false
-            v:Destroy()
-        end
-        if v:IsA("Decal") or v:IsA("Texture") then v:Destroy() end
-        if v:IsA("BasePart") or v:IsA("MeshPart") then
-            v.Material = Enum.Material.Plastic
-            v.Reflectance = 0
-            v.CastShadow = false
-        end
-    end
-    for _, v in pairs(Lighting:GetChildren()) do
-        if v:IsA("BlurEffect") or v:IsA("SunRaysEffect") or v:IsA("ColorCorrectionEffect") or v:IsA("BloomEffect") or v:IsA("DepthOfFieldEffect") or v:IsA("PostEffect") then
-            v:Destroy()
-        end
-    end
-end)
+settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
 
 -------------------------------------------------
--- MAIN FARM ROUTE (เอาขึ้นมาไว้ก่อนเพื่อใช้สร้างพื้น)
+-- MAIN FARM ROUTE
 -------------------------------------------------
 local FarmRoute = {
     {portal = "Shibuya", pos = CFrame.new(1400.0594, 8.4861, 484.9847)},
@@ -266,39 +215,52 @@ local FarmRoute = {
 }
 
 -------------------------------------------------
--- EXTREME MAP DELETION & INVISIBLE PLATFORMS (ลบแมพทิ้ง + สร้างที่ยืน)
+-- ☢️ NUKE MAP & INVISIBLE PLATFORMS ☢️
 -------------------------------------------------
+local PlatformFolder = workspace:FindFirstChild("FarmPlatforms")
+if not PlatformFolder then
+    PlatformFolder = Instance.new("Folder")
+    PlatformFolder.Name = "FarmPlatforms"
+    PlatformFolder.Parent = workspace
+end
+
+-- 1. สร้างพื้นล่องหนมารองรับใต้ CFrame ทุกจุดที่วาร์ปไป
+for _, area in ipairs(FarmRoute) do
+    local platform = Instance.new("Part")
+    platform.Size = Vector3.new(200, 5, 200) -- กว้าง 200x200 กันตกเวลาใช้สกิลแล้วพุ่ง
+    platform.CFrame = area.pos * CFrame.new(0, -6, 0) -- วางไว้ใต้เท้า
+    platform.Anchored = true
+    platform.Transparency = 1 -- ล่องหน
+    platform.CanCollide = true
+    platform.Parent = PlatformFolder
+end
+
+-- 2. ระบบสแกนและทำลายแมพ (ทำงานตลอดเวลาเพื่อรับมือแมพที่เพิ่งโหลดใหม่)
 task.spawn(function()
-    task.wait(3) -- รอให้โหลดสิ่งต่างๆ เสร็จก่อนค่อยลบ
-    pcall(function()
-        -- 1. ลบ Terrain ทิ้งทั้งหมด (น้ำ, หญ้า, พื้นดิน)
-        local Terrain = workspace:FindFirstChildOfClass("Terrain")
-        if Terrain then
-            Terrain:Clear()
-        end
-        
-        -- 2. วนลบชิ้นส่วนแมพทั้งหมดที่ "ไม่มีชีวิต"
-        for _, v in pairs(workspace:GetDescendants()) do
-            if v:IsA("BasePart") and not v:IsA("Terrain") then
-                -- เช็คว่าไม่ได้อยู่ในตัวละคร (Player หรือ มอนสเตอร์)
-                local model = v:FindFirstAncestorOfClass("Model")
-                if not (model and model:FindFirstChildOfClass("Humanoid")) then
-                    pcall(function() v:Destroy() end)
+    while task.wait(3) do -- เช็คทุกๆ 3 วินาที
+        pcall(function()
+            -- ลบ Terrain ทิ้งก่อนเลย
+            local Terrain = workspace:FindFirstChildOfClass("Terrain")
+            if Terrain then Terrain:Clear() end
+
+            -- กวาดล้างทุกอย่างใน Workspace ยกเว้นผู้เล่นและพื้นล่องหน
+            for _, v in pairs(workspace:GetChildren()) do
+                -- ข้ามโฟลเดอร์ที่เราสร้าง และข้ามกล้อง
+                if v.Name == "FarmPlatforms" or v:IsA("Camera") or v:IsA("Terrain") then continue end
+                
+                -- ข้าม Script เผื่อระบบเกมต้องใช้
+                if v:IsA("Script") or v:IsA("LocalScript") then continue end
+
+                -- ข้ามตัวละคร (ทั้งเรา ทั้งผู้เล่นอื่น ทั้งมอนสเตอร์)
+                if v:FindFirstChildOfClass("Humanoid") then continue end
+
+                -- นอกนั้นลบทิ้งให้เกลี้ยง!
+                if v:IsA("Folder") or v:IsA("Model") or v:IsA("BasePart") then
+                    v:Destroy()
                 end
             end
-        end
-
-        -- 3. สร้างพื้นรองรับตรงจุดฟาร์มทุกจุด (กันตก)
-        for _, area in ipairs(FarmRoute) do
-            local platform = Instance.new("Part")
-            platform.Size = Vector3.new(100, 5, 100) -- แผ่นใหญ่ๆ 100x100
-            platform.CFrame = area.pos * CFrame.new(0, -5, 0) -- ให้อยู่ใต้เท้า CFrame พอดีเป๊ะ
-            platform.Anchored = true
-            platform.Transparency = 1 -- ล่องหน
-            platform.CanCollide = true
-            platform.Parent = workspace
-        end
-    end)
+        end)
+    end
 end)
 
 -------------------------------------------------
@@ -329,8 +291,7 @@ if player.Character then enableBuso() end
 player.CharacterAdded:Connect(function() enableBuso() end)
 
 task.spawn(function()
-    while true do
-        task.wait(30)
+    while task.wait(30) do
         if _G_AutoFarm then
             pcall(function() ObservationRemote:FireServer("Toggle") end)
         end
@@ -342,7 +303,7 @@ end)
 -------------------------------------------------
 task.spawn(function()
     local currentWeaponIndex = 1
-    while task.wait(1) do 
+    while task.wait(0.5) do 
         if not _G_AutoFarm then continue end
 
         local char = player.Character
@@ -366,11 +327,11 @@ end)
 -- AUTO SKILL 
 -------------------------------------------------
 task.spawn(function()
-    while task.wait(0.5) do 
+    while task.wait(0.25) do 
         if _G_AutoFarm then
             pcall(function()
                 VirtualInputManager:SendKeyEvent(true, "X", false, game)
-                task.wait(0.05)
+                task.wait()
                 VirtualInputManager:SendKeyEvent(false, "X", false, game)
             end)
         end
@@ -395,3 +356,4 @@ task.spawn(function()
         end
     end
 end)
+
