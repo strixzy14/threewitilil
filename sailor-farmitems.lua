@@ -212,6 +212,38 @@ if getgenv().Skills ~= nil and type(getgenv().Skills) == "table" then
 end
 
 -------------------------------------------------
+-- 🚫 DISABLE ROBLOX NETWORK PAUSE NOTIFICATION (UPDATED)
+-------------------------------------------------
+task.spawn(function()
+    local CoreGui = game:GetService("CoreGui")
+    
+    local function removeTarget(parent, name)
+        pcall(function()
+            local target = parent:FindFirstChild(name)
+            if target then
+                target:Destroy()
+            end
+        end)
+    end
+
+    -- 1. ลบ Notification UI ตัวหลัก
+    removeTarget(CoreGui, "RobloxNetworkPauseNotification")
+
+    -- 2. ลบ Module และ CoreScript ใน RobloxGui
+    local robloxGui = CoreGui:FindFirstChild("RobloxGui")
+    if robloxGui then
+        -- ลบ Modules/NetworkPauseNotification
+        local modules = robloxGui:FindFirstChild("Modules")
+        if modules then
+            removeTarget(modules, "NetworkPauseNotification")
+        end
+        
+        -- ลบ CoreScripts/NetworkPause
+        removeTarget(robloxGui, "CoreScripts/NetworkPause")
+    end
+end)
+
+-------------------------------------------------
 -- 💎 ULTRA MINIMAL CAPSULE UI (No Black Borders)
 -------------------------------------------------
 local ScreenGui = Instance.new("ScreenGui")
@@ -460,7 +492,7 @@ task.spawn(function()
                 if hrp then
                     for i = 1, 3 do hrp.CFrame = area.pos; task.wait() end
                 end
-                task.wait(2.5)
+                task.wait(2.7)
             end
         else
             task.wait(1)
